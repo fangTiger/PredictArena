@@ -9,13 +9,9 @@
     "lint": "ESLINT_USE_FLAT_CONFIG=false eslint . --ext .ts,.tsx",
     "test": "vitest run",
     "test:contracts": "HOME=$PWD/.home XDG_CACHE_HOME=$PWD/.cache HARDHAT_DISABLE_TELEMETRY_PROMPT=true HARDHAT_HIDE_SOLIDITY_SURVEY_MESSAGE=true hardhat test",
-    "test:e2e": "playwright test",
-    "db:generate": "PRISMA_QUERY_ENGINE_LIBRARY=${PRISMA_QUERY_ENGINE_LIBRARY:-$(find \"$PWD/node_modules/@prisma/engines\" -maxdepth 1 -name 'libquery_engine-*.node' | head -n 1)} XDG_CACHE_HOME=$PWD/.cache HOME=$PWD/.home prisma generate",
-    "db:push": "PRISMA_QUERY_ENGINE_LIBRARY=${PRISMA_QUERY_ENGINE_LIBRARY:-$(find \"$PWD/node_modules/@prisma/engines\" -maxdepth 1 -name 'libquery_engine-*.node' | head -n 1)} XDG_CACHE_HOME=$PWD/.cache HOME=$PWD/.home prisma db push",
-    "postinstall": "PRISMA_QUERY_ENGINE_LIBRARY=${PRISMA_QUERY_ENGINE_LIBRARY:-$(find \"$PWD/node_modules/@prisma/engines\" -maxdepth 1 -name 'libquery_engine-*.node' | head -n 1)} XDG_CACHE_HOME=$PWD/.cache HOME=$PWD/.home prisma generate"
+    "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@prisma/client": "^6.8.2",
     "next": "^15.3.3",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -30,11 +26,13 @@
     "@types/react-dom": "^19.1.5",
     "@typescript-eslint/eslint-plugin": "^8.32.1",
     "@typescript-eslint/parser": "^8.32.1",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.28.0",
     "eslint-config-next": "^15.3.3",
     "hardhat": "^2.24.1",
     "jsdom": "^26.1.0",
-    "prisma": "^6.8.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "vitest": "^3.1.4"

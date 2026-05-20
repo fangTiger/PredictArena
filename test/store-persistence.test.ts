@@ -3,200 +3,124 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createFileStore } from '@/lib/server/store/file-store';
-import { createInMemoryStore } from '@/lib/server/store/memory-store';
-import type { PredictArenaStore } from '@/lib/server/store/types';
-import type { ArenaRunResult, ParsedMarket, ScanRecord } from '@/types/predictarena';
 
-function createMarket(id: string, asset: 'ETH' | 'BTC'): ParsedMarket {
-  return {
-    id,
-    eventId: `event-${id}`,
-    slug: `${asset.toLowerCase()}-${id}`,
-    question: `Will ${asset} be above target?`,
-    asset,
-    direction: 'ABOVE',
-    thresholdCents: asset === 'ETH' ? 400_000 : 110_000_00,
-    expiryAt: '2026-07-01T23:59:00.000Z',
-    yesPriceBps: 5600,
-    noPriceBps: 4400,
-    liquidityScoreBps: 8300,
-    parseConfidenceBps: 9400,
-    source: 'live',
-    rawPayload: { origin: 'test' }
-  };
-}
+const TEST_SIGNAL = {
+  id: 'demo-btc-105k:volatility',
+  runId: 'run:demo-btc-105k:2026-05-20T00:00:00.000Z',
+  marketId: 'demo-btc-105k',
+  marketQuestion: 'Will BTC be above $105,000 on May 30, 2026?',
+  marketUrl: 'https://polymarket.com/event/demo-btc-105k',
+  asset: 'BTC',
+  conditionType: 'EXPIRY_ABOVE',
+  thresholdUsd: 105000,
+  expiresAt: '2026-05-30T23:59:00.000Z',
+  agentName: 'volatility' as const,
+  modelVersion: 'volatility-gbm-v1',
+  modelParams: { sigma: 0.7 },
+  modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111' as const,
+  dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222' as const,
+  side: 'YES' as const,
+  status: 'generated' as const,
+  confidence: 'HIGH' as const,
+  confidenceBps: 7600,
+  marketPriceBps: 5400,
+  agentProbabilityBps: 7600,
+  yesPriceBps: 5400,
+  pYesBps: 7600,
+  edgeBps: 2200,
+  kellyBps: 300,
+  stakeMicroUsdc: 50000,
+  riskFlags: [],
+  arcTxHash: null,
+  createdAt: '2026-05-20T00:00:00.000Z',
+  updatedAt: '2026-05-20T00:00:00.000Z',
+  source: 'demo_snapshot' as const,
+  resolution: null
+};
 
-function createScan(overrides: Partial<ScanRecord> = {}): ScanRecord {
-  return {
-    id: 'scan-1',
-    source: 'live',
-    liveMarketCount: 1,
-    parsedMarketCount: 1,
-    skippedMarketCount: 0,
-    createdAt: '2026-05-20T00:00:00.000Z',
-    ...overrides
-  };
-}
-
-function createRuns(markets: ParsedMarket[]): ArenaRunResult[] {
-  return markets.map((market, index) => ({
-    market,
-    volatility: {
-      agent: 'volatility',
-      probabilityBps: 7600 - index * 200,
-      reasons: [`volatility-${market.id}`]
-    },
-    momentum: {
-      agent: 'momentum',
-      probabilityBps: 7800 - index * 200,
-      reasons: [`momentum-${market.id}`]
-    },
-    signal: {
-      id: `signal-${market.id}`,
-      marketId: market.id,
-      decision: 'BUY_YES',
-      yesProbabilityBps: 7900 - index * 100,
-      noProbabilityBps: 2100 + index * 100,
-      confidenceBps: 7900 - index * 100,
-      edgeBps: 1500 - index * 100,
-      eligibleForCommit: true,
-      bondAmountMicroUsdc: 25_000_000,
-      agentScoreBps: 7900 - index * 100,
-      reasons: [`signal-${market.id}`],
-      createdAt: `2026-05-20T0${index + 1}:00:00.000Z`,
-      commitmentStatus: 'not_started'
-    }
-  }));
-}
-
-interface StoreHarness {
-  store: PredictArenaStore;
-  cleanup: () => Promise<void>;
-}
-
-async function createMemoryHarness(): Promise<StoreHarness> {
-  return {
-    store: createInMemoryStore(),
-    cleanup: async () => undefined
-  };
-}
-
-async function createFileHarness(): Promise<StoreHarness> {
-  const workdir = path.join(tmpdir(), `predictarena-store-${randomUUID()}`);
-  await fs.mkdir(workdir, { recursive: true });
-  const cwdSpy = vi.spyOn(process, 'cwd').mockReturnValue(workdir);
-
-  return {
-    store: createFileStore(),
-    cleanup: async () => {
-      cwdSpy.mockRestore();
-      await fs.rm(workdir, { recursive: true, force: true });
-    }
-  };
-}
-
-describe.each([
-  ['memory', createMemoryHarness],
-  ['file', createFileHarness]
-] satisfies [string, () => Promise<StoreHarness>][])('%s store commitment persistence', (label, createHarness) => {
-  const cleanups: Array<() => Promise<void>> = [];
-
-  afterEach(async () => {
-    while (cleanups.length > 0) {
-      const cleanup = cleanups.pop();
-      if (cleanup) {
-        await cleanup();
-      }
-    }
+describe('local persistence store', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
-  async function withStore(): Promise<PredictArenaStore> {
-    const harness = await createHarness();
-    cleanups.push(harness.cleanup);
-    return harness.store;
-  }
+  it('persists scans and signals to local JSON when Supabase is absent', async () => {
+    const workdir = path.join(tmpdir(), `predictarena-store-${randomUUID()}`);
+    await fs.mkdir(workdir, { recursive: true });
 
-  it('preserves committed state across rescan and rerun', async () => {
-    const store = await withStore();
-    const market = createMarket(`market-eth-${label}`, 'ETH');
-    const initialRuns = createRuns([market]);
-    const rerun = createRuns([{ ...market, yesPriceBps: 5900, noPriceBps: 4100 }]);
-
-    await store.saveScan({
-      scan: createScan({ id: `scan-${label}-1` }),
-      markets: [market],
-      skips: []
-    });
-    await store.saveArenaRuns(initialRuns);
-    await store.saveCommitment({
-      signalId: initialRuns[0].signal.id,
-      txHash: `0x${label}-rescan`,
-      bondAmountMicroUsdc: 25_000_000,
-      chainId: 5_042_002,
-      committedAt: '2026-05-20T03:00:00.000Z'
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const store = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
     });
 
-    await store.saveScan({
-      scan: createScan({
-        id: `scan-${label}-2`,
-        createdAt: '2026-05-20T04:00:00.000Z'
-      }),
-      markets: [{ ...market, yesPriceBps: 5900, noPriceBps: 4100 }],
-      skips: []
+    await store.saveMarketScan({
+      source: 'demo_snapshot',
+      fallbackReason: 'network down',
+      markets: [
+        {
+          id: 'demo-btc-105k',
+          eventId: 'demo-event-btc-105k',
+          slug: 'demo-btc-105k',
+          question: 'Will BTC be above $105,000 on May 30, 2026?',
+          source: 'demo_snapshot',
+          endDate: '2026-05-30T23:59:00.000Z',
+          yesPriceBps: 5400,
+          noPriceBps: 4600,
+          liquidity: 200000,
+          volume: 10000,
+          active: true,
+          closed: false,
+          clobTokenIds: [],
+          url: null,
+          rawPayload: {},
+          asset: 'BTC',
+          conditionType: 'EXPIRY_ABOVE',
+          thresholdUsd: 105000,
+          expiresAt: '2026-05-30T23:59:00.000Z',
+          yesMeaning: 'YES means BTC closes above $105,000 at expiry.',
+          parseConfidence: 0.92,
+          scoutScoreBps: 7800
+        }
+      ]
     });
-    await store.saveArenaRuns(rerun);
+    await store.saveAgentRun({
+      runId: 'run-1',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-20T00:00:00.000Z',
+      signals: [TEST_SIGNAL]
+    });
 
-    expect(await store.getSignal(initialRuns[0].signal.id)).toMatchObject({
-      id: initialRuns[0].signal.id,
-      committedTxHash: `0x${label}-rescan`,
-      commitmentStatus: 'committed'
+    const reloadedStore = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
     });
-    expect(await store.getDashboardStats()).toMatchObject({
-      committedSignals: 1,
-      usdcBondedMicro: 25_000_000
-    });
+    const state = await reloadedStore.getArenaState();
+
+    expect(state.latestScan?.source).toBe('demo_snapshot');
+    expect(state.signals).toHaveLength(1);
+    expect(state.signals[0]?.id).toBe(TEST_SIGNAL.id);
   });
 
-  it('preserves commitments when a later run excludes the committed signal', async () => {
-    const store = await withStore();
-    const markets = [
-      createMarket(`market-eth-${label}`, 'ETH'),
-      createMarket(`market-btc-${label}`, 'BTC')
-    ];
-    const runs = createRuns(markets);
+  it('falls back to in-memory state when file writes fail', async () => {
+    const workdir = path.join(tmpdir(), `predictarena-store-fail-${randomUUID()}`);
+    await fs.mkdir(workdir, { recursive: true });
 
-    await store.saveScan({
-      scan: createScan({
-        id: `scan-${label}-shrink`,
-        liveMarketCount: 2,
-        parsedMarketCount: 2
-      }),
-      markets,
-      skips: []
-    });
-    await store.saveArenaRuns(runs);
-    await store.saveCommitment({
-      signalId: runs[0].signal.id,
-      txHash: `0x${label}-shrink`,
-      bondAmountMicroUsdc: 25_000_000,
-      chainId: 5_042_002,
-      committedAt: '2026-05-20T03:00:00.000Z'
+    const { promises: fsModule } = await import('node:fs');
+    const writeSpy = vi.spyOn(fsModule, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const store = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
     });
 
-    await store.saveArenaRuns([runs[1]]);
-
-    expect(await store.getDashboardStats()).toMatchObject({
-      committedSignals: 1,
-      usdcBondedMicro: 25_000_000
+    await store.saveAgentRun({
+      runId: 'run-memory',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-20T00:00:00.000Z',
+      signals: [TEST_SIGNAL]
     });
 
-    await store.saveArenaRuns(runs);
+    const signals = await store.listSignals();
 
-    expect(await store.getSignal(runs[0].signal.id)).toMatchObject({
-      id: runs[0].signal.id,
-      committedTxHash: `0x${label}-shrink`,
-      commitmentStatus: 'committed'
-    });
+    expect(writeSpy).toHaveBeenCalled();
+    expect(signals).toHaveLength(1);
+    expect(signals[0]?.id).toBe(TEST_SIGNAL.id);
   });
 });

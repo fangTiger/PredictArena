@@ -1,9 +1,5 @@
-import { ArenaDashboard } from '@/components/arena-dashboard';
-import { ensureDashboardState } from '@/lib/services/dashboard-service';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default async function HomePage() {
-  const initialState = await ensureDashboardState();
-  return <ArenaDashboard initialState={initialState} />;
+export default function HomePage() {
+  redirect('/arena');
 }

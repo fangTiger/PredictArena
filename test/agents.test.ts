@@ -1,70 +1,110 @@
 import { describe, expect, it } from 'vitest';
-import { runArenaForMarket } from '@/lib/agents/run-arena';
-import type { ParsedMarket, PriceFeatureSet } from '@/types/predictarena';
+import type { ParsedCryptoMarket } from '@/lib/polymarket/types';
+import type { PriceSnapshot } from '@/lib/prices/types';
 
-const baseMarket: ParsedMarket = {
-  id: 'market-eth-4k',
-  eventId: 'event-eth-4k',
-  slug: 'eth-above-4k',
-  question: 'Will ETH be above $4,000 on July 1, 2026?',
-  asset: 'ETH',
-  direction: 'ABOVE',
-  thresholdCents: 400_000,
-  expiryAt: '2026-07-01T23:59:00Z',
-  yesPriceBps: 5600,
-  noPriceBps: 4400,
-  liquidityScoreBps: 8300,
-  parseConfidenceBps: 9400,
-  source: 'live',
-  rawPayload: { origin: 'test' }
-};
+function createMarket(overrides: Partial<ParsedCryptoMarket> = {}): ParsedCryptoMarket {
+  return {
+    id: 'market-btc-105k',
+    eventId: 'event-btc-105k',
+    slug: 'btc-touch-105k',
+    question: 'Will BTC touch $105k by May 27, 2026?',
+    source: 'live',
+    endDate: '2026-05-27T23:59:00.000Z',
+    yesPriceBps: 5400,
+    noPriceBps: 4600,
+    liquidity: 350_000,
+    volume: 80_000,
+    active: true,
+    closed: false,
+    clobTokenIds: ['1', '2'],
+    url: 'https://polymarket.com/event/btc-touch-105k',
+    rawPayload: { id: 'market-btc-105k' },
+    asset: 'BTC',
+    conditionType: 'TOUCH_ABOVE',
+    thresholdUsd: 105_000,
+    expiresAt: '2026-05-27T23:59:00.000Z',
+    yesMeaning: 'YES means BTC touches $105k before expiry.',
+    parseConfidence: 0.92,
+    scoutScoreBps: 7800,
+    ...overrides
+  };
+}
 
-describe('runArenaForMarket', () => {
-  it('emits a deterministic BUY_YES signal for aligned high-conviction forecasts', () => {
-    const features: PriceFeatureSet = {
-      asset: 'ETH',
-      asOf: '2026-05-20T10:00:00Z',
-      currentPriceCents: 395_000,
-      trailingHighCents: 408_000,
-      trailingLowCents: 372_000,
-      realizedVolatilityBps: 1800,
-      momentumBps: 720
-    };
+function createSnapshot(overrides: Partial<PriceSnapshot> = {}): PriceSnapshot {
+  return {
+    asset: 'BTC',
+    source: 'live',
+    currentPrice: 99_500,
+    sigma7: 0.78,
+    sigma30: 0.55,
+    sigma: 0.7,
+    recentReturn7d: 0.08,
+    asOf: '2026-05-20T00:00:00.000Z',
+    ...overrides
+  };
+}
 
-    const result = runArenaForMarket(baseMarket, features);
+describe('runAgents', () => {
+  it('generates YES and NO signals with edge, Kelly, stake, and confidence', async () => {
+    const { runAgents } = await import('@/lib/agents/runAgents');
 
-    expect(result.volatility.probabilityBps).toBe(8612);
-    expect(result.momentum.probabilityBps).toBe(7725);
-    expect(result.signal.decision).toBe('BUY_YES');
-    expect(result.signal.eligibleForCommit).toBe(true);
-    expect(result.signal.bondAmountMicroUsdc).toBe(25_000_000);
-  });
-
-  it('gates weak or stale setups into AVOID even when one agent leans YES', () => {
-    const features: PriceFeatureSet = {
-      asset: 'ETH',
-      asOf: '2026-06-30T22:30:00Z',
-      currentPriceCents: 351_000,
-      trailingHighCents: 355_000,
-      trailingLowCents: 344_000,
-      realizedVolatilityBps: 310,
-      momentumBps: 180
-    };
-
-    const result = runArenaForMarket(
+    const signals = runAgents(
+      [createMarket(), createMarket({ id: 'market-btc-no', yesPriceBps: 7600, noPriceBps: 2400 })],
+      new Map([
+        ['BTC', createSnapshot()],
+        ['ETH', createSnapshot({ asset: 'ETH', currentPrice: 4_050 })],
+        ['SOL', createSnapshot({ asset: 'SOL', currentPrice: 135 })]
+      ]),
       {
-        ...baseMarket,
-        id: 'market-eth-4k-expiring',
-        expiryAt: '2026-07-01T00:30:00Z',
-        liquidityScoreBps: 4100,
-        yesPriceBps: 4800,
-        noPriceBps: 5200
-      },
-      features
+        now: '2026-05-20T00:00:00.000Z',
+        simulateProbability: ({ market, agentName }) => {
+          if (market.id === 'market-btc-no') {
+            return agentName === 'volatility' ? 0.24 : 0.29;
+          }
+
+          return agentName === 'volatility' ? 0.71 : 0.76;
+        }
+      }
     );
 
-    expect(result.signal.decision).toBe('AVOID');
-    expect(result.signal.eligibleForCommit).toBe(false);
-    expect(result.signal.disabledReason).toContain('liquidity');
+    const yesSignal = signals.find((signal) => signal.marketId === 'market-btc-105k' && signal.agentName === 'volatility');
+    const noSignal = signals.find((signal) => signal.marketId === 'market-btc-no' && signal.agentName === 'momentum');
+
+    expect(yesSignal?.side).toBe('YES');
+    expect(yesSignal?.edgeBps).toBeGreaterThanOrEqual(700);
+    expect(yesSignal?.kellyBps).toBeGreaterThan(0);
+    expect(yesSignal?.stakeMicroUsdc).toBe(30_000);
+    expect(yesSignal?.confidence).toBe('HIGH');
+
+    expect(noSignal?.side).toBe('NO');
+    expect(noSignal?.edgeBps).toBeGreaterThanOrEqual(700);
+    expect(noSignal?.stakeMicroUsdc).toBe(50_000);
+    expect(noSignal?.confidence).toBe('HIGH');
+  });
+
+  it('marks weak or missing-data signals as AVOID and preserves risk flags', async () => {
+    const { runAgents } = await import('@/lib/agents/runAgents');
+
+    const weakSignals = runAgents(
+      [
+        createMarket({ id: 'weak-edge', yesPriceBps: 5100, noPriceBps: 4900 }),
+        createMarket({ id: 'missing-price', asset: 'SOL' })
+      ],
+      new Map([['BTC', createSnapshot({ currentPrice: 100_200 })]]),
+      {
+        now: '2026-05-20T00:00:00.000Z',
+        simulateProbability: ({ market }) => (market.id === 'weak-edge' ? 0.54 : 0.72)
+      }
+    );
+
+    const weak = weakSignals.find((signal) => signal.marketId === 'weak-edge' && signal.agentName === 'volatility');
+    const missing = weakSignals.find((signal) => signal.marketId === 'missing-price' && signal.agentName === 'momentum');
+
+    expect(weak?.side).toBe('AVOID');
+    expect(weak?.kellyBps).toBe(0);
+    expect(weak?.stakeMicroUsdc).toBe(0);
+
+    expect(missing?.side).toBe('AVOID');
+    expect(missing?.riskFlags).toContain('missing_price_snapshot');
   });
 });

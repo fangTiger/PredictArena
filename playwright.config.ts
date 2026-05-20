@@ -1,4 +1,4 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './test/e2e',
@@ -6,13 +6,29 @@ export default defineConfig({
     baseURL: 'http://127.0.0.1:3000',
     trace: 'on-first-retry'
   },
+  projects: [
+    {
+      name: 'desktop',
+      use: {
+        ...devices['Desktop Chrome'],
+        viewport: { width: 1440, height: 1200 }
+      }
+    },
+    {
+      name: 'mobile',
+      use: {
+        ...devices['Pixel 7'],
+        viewport: { width: 390, height: 1000 }
+      }
+    }
+  ],
   webServer: {
     command: 'npm run dev -- --hostname 127.0.0.1 --port 3000',
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: true,
     env: {
-      PREDICTARENA_DISABLE_LIVE_FETCH: '1',
-      DATABASE_URL: 'file:./playwright.db'
+      ALLOW_DEMO_SNAPSHOT: 'true',
+      PREDICTARENA_LOCAL_STORE_PATH: '/tmp/predictarena-playwright-store.json'
     }
   }
 });

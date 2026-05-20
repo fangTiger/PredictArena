@@ -1,105 +1,102 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createInMemoryStore } from '@/lib/server/store/memory-store';
-import { commitSignalAndLoadDashboardState } from '@/lib/services/commit-service';
-import type { ArenaSignal, ParsedMarket, ScanRecord } from '@/types/predictarena';
+import { createLocalStore } from '@/lib/persistence/localStore';
+import { commitSignalToArena } from '@/lib/arc/commitSignal';
+import type { AgentSignal } from '@/lib/polymarket/types';
 
-const scan: ScanRecord = {
-  id: 'scan-1',
-  source: 'live',
-  liveMarketCount: 1,
-  parsedMarketCount: 1,
-  skippedMarketCount: 0,
-  createdAt: '2026-05-20T00:00:00.000Z'
-};
-
-const market: ParsedMarket = {
-  id: 'market-eth-4k',
-  eventId: 'event-eth-4k',
-  slug: 'eth-above-4k',
-  question: 'Will ETH be above $4,000 on July 1, 2026?',
-  asset: 'ETH',
-  direction: 'ABOVE',
-  thresholdCents: 400_000,
-  expiryAt: '2026-07-01T23:59:00.000Z',
-  yesPriceBps: 5600,
-  noPriceBps: 4400,
-  liquidityScoreBps: 8300,
-  parseConfidenceBps: 9400,
-  source: 'live',
-  rawPayload: { origin: 'test' }
-};
-
-function createCommittedSignal(
-  overrides: Partial<ArenaSignal> = {}
-): ArenaSignal {
+function createSignal(overrides: Partial<AgentSignal> = {}): AgentSignal {
   return {
-    id: 'signal-market-eth-4k',
-    marketId: market.id,
-    decision: 'BUY_YES',
-    yesProbabilityBps: 7800,
-    noProbabilityBps: 2200,
-    confidenceBps: 7800,
-    edgeBps: 1800,
-    eligibleForCommit: true,
-    bondAmountMicroUsdc: 25_000_000,
-    agentScoreBps: 7800,
-    reasons: ['test reason'],
-    createdAt: '2026-05-20T01:00:00.000Z',
-    commitmentStatus: 'committed',
+    id: 'signal-1',
+    runId: 'run-1',
+    marketId: 'market-1',
+    marketQuestion: 'Will BTC be above $105,000 on May 30, 2026?',
+    marketUrl: 'https://polymarket.com/event/market-1',
+    asset: 'BTC',
+    conditionType: 'EXPIRY_ABOVE',
+    thresholdUsd: 105000,
+    expiresAt: '2026-05-30T23:59:00.000Z',
+    agentName: 'volatility',
+    modelVersion: 'volatility-gbm-v1',
+    modelParams: { sigma: 0.7 },
+    modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+    dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+    side: 'YES',
+    status: 'generated',
+    confidence: 'HIGH',
+    confidenceBps: 7600,
+    marketPriceBps: 5400,
+    agentProbabilityBps: 7600,
+    yesPriceBps: 5400,
+    pYesBps: 7600,
+    edgeBps: 2200,
+    kellyBps: 300,
+    stakeMicroUsdc: 50000,
+    riskFlags: [],
+    arcTxHash: null,
+    createdAt: '2026-05-20T00:00:00.000Z',
+    updatedAt: '2026-05-20T00:00:00.000Z',
+    source: 'demo_snapshot',
+    resolution: null,
     ...overrides
   };
 }
 
-describe('commitSignalAndLoadDashboardState', () => {
+describe('commitSignalToArena', () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllEnvs();
   });
 
-  it('returns disabled result when the signal status is already committed', async () => {
-    vi.stubEnv('ARC_PRIVATE_KEY', '');
-    vi.stubEnv('ARC_SIGNAL_BOND_VAULT_ADDRESS', '');
+  it('rejects missing config before any onchain call', async () => {
+    vi.stubEnv('SIGNAL_BOND_ARENA_ADDRESS', '');
+    vi.stubEnv('VOL_AGENT_PRIVATE_KEY', '');
 
-    const store = createInMemoryStore({
-      latestScan: scan,
-      markets: [market],
-      signals: [
-        createCommittedSignal({
-          committedTxHash: undefined,
-          commitmentStatus: 'committed'
-        })
-      ]
-    });
+    const store = createLocalStore({ storagePath: '/tmp/predictarena-commit-test.json' });
 
-    const state = await commitSignalAndLoadDashboardState(store, 'signal-market-eth-4k');
-
-    expect(state.lastCommitResult).toEqual({
-      status: 'disabled',
-      signalId: 'signal-market-eth-4k',
-      reason: 'Signal already committed'
-    });
+    await expect(commitSignalToArena(store, createSignal())).rejects.toThrow(
+      /commit_config_missing/
+    );
   });
 
-  it('returns disabled result when the signal already has a tx hash', async () => {
-    vi.stubEnv('ARC_PRIVATE_KEY', '');
-    vi.stubEnv('ARC_SIGNAL_BOND_VAULT_ADDRESS', '');
+  it('checks allowance, approves if needed, and commits with the matching agent wallet', async () => {
+    vi.stubEnv('SIGNAL_BOND_ARENA_ADDRESS', '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    vi.stubEnv('VOL_AGENT_PRIVATE_KEY', '0x1111111111111111111111111111111111111111111111111111111111111111');
+    vi.stubEnv('MOMENTUM_AGENT_PRIVATE_KEY', '0x2222222222222222222222222222222222222222222222222222222222222222');
 
-    const store = createInMemoryStore({
-      latestScan: scan,
-      markets: [market],
-      signals: [
-        createCommittedSignal({
-          committedTxHash: '0xabc123',
-          commitmentStatus: 'not_started'
-        })
-      ]
+    const readContract = vi
+      .fn()
+      .mockResolvedValueOnce(5_042_002)
+      .mockResolvedValueOnce(0n);
+    const waitForTransactionReceipt = vi.fn().mockResolvedValue({ status: 'success' });
+    const writeContract = vi
+      .fn()
+      .mockResolvedValueOnce('0xapprove000000000000000000000000000000000000000000000000000000000001')
+      .mockResolvedValueOnce('0xcommit0000000000000000000000000000000000000000000000000000000000001');
+
+    const store = createLocalStore({ storagePath: '/tmp/predictarena-commit-flow.json' });
+
+    const result = await commitSignalToArena(store, createSignal(), {
+      createClients: ({ privateKey }) => ({
+        account: {
+          address:
+            privateKey === '0x1111111111111111111111111111111111111111111111111111111111111111'
+              ? '0xvolatility0000000000000000000000000000000'
+              : '0xmomentum00000000000000000000000000000000'
+        } as never,
+        publicClient: {
+          getChainId: readContract,
+          readContract,
+          waitForTransactionReceipt
+        } as never,
+        walletClient: {
+          writeContract
+        } as never
+      })
     });
 
-    const state = await commitSignalAndLoadDashboardState(store, 'signal-market-eth-4k');
-
-    expect(state.lastCommitResult).toEqual({
-      status: 'disabled',
-      signalId: 'signal-market-eth-4k',
-      reason: 'Signal already committed'
-    });
+    expect(readContract).toHaveBeenCalled();
+    expect(writeContract).toHaveBeenCalledTimes(2);
+    expect(String(writeContract.mock.calls[0]?.[0]?.address)).toContain('3600000000000000000000000000000000000000');
+    expect(String(writeContract.mock.calls[1]?.[0]?.address)).toContain('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    expect(result.txHash).toContain('0xcommit');
   });
 });

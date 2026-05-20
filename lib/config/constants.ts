@@ -1,0 +1,20 @@
+export const ARC_TESTNET_CHAIN_ID = 5_042_002;
+export const ARC_TESTNET_RPC_URL = 'https://rpc.testnet.arc.network';
+export const ARC_TESTNET_USDC_ADDRESS = '0x3600000000000000000000000000000000000000';
+export const ARC_TESTNET_USDC_DECIMALS = 6;
+export const ARC_TESTNET_EXPLORER_URL = 'https://testnet.arcscan.app';
+
+export const DEFAULT_MARKET_LIMIT = 20;
+export const DEFAULT_MONTE_CARLO_PATHS = 10_000;
+export const DEFAULT_SIGNAL_STAKE_MICRO_USDC = 10_000;
+export const POLYMARKET_GAMMA_URL = 'https://gamma-api.polymarket.com/markets';
+
+export const DEFAULT_TREASURY_ADDRESS = '0x000000000000000000000000000000000000dEaD';
+
+export const SERVER_ONLY_SECRET_NAMES = [
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'VOL_AGENT_PRIVATE_KEY',
+  'MOMENTUM_AGENT_PRIVATE_KEY',
+  'ADMIN_PRIVATE_KEY',
+  'ADMIN_RESOLVE_TOKEN'
+] as const;

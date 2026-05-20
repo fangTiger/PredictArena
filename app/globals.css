@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --near-black: #080a0f;
   --graphite: #111827;
@@ -40,6 +44,7 @@ body {
     linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px);
   background-size: 72px 72px;
+  text-wrap: pretty;
 }
 
 body::before {
@@ -89,9 +94,24 @@ button:disabled {
   cursor: not-allowed;
 }
 
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
 code {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   overflow-wrap: anywhere;
+}
+
+::selection {
+  color: #03140f;
+  background: rgba(142, 246, 193, 0.86);
+}
+
+:focus-visible {
+  outline: 2px solid rgba(107, 198, 255, 0.86);
+  outline-offset: 3px;
 }
 
 .arena-shell {
@@ -360,6 +380,10 @@ code {
   background:
     linear-gradient(135deg, rgba(91, 255, 176, 1), rgba(255, 209, 102, 0.9)),
     var(--market-green);
+}
+
+.wide-button {
+  grid-column: 1 / -1;
 }
 
 .rail-stats,
@@ -773,5 +797,16 @@ code {
 
   .leaderboard-metric {
     text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
