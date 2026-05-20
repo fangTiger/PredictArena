@@ -4,7 +4,8 @@ test('dashboard auto-scans, runs agents, and omits manual market inputs', async 
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: 'PredictArena' })).toBeVisible();
-  await expect(page.getByText('Autonomous Agent Arena')).toBeVisible();
+  await expect(page.getByText('Arc Trading War Room')).toBeVisible();
+  await expect(page.getByRole('img', { name: /predictarena war room/i })).toBeVisible();
   await expect(page.getByPlaceholder(/question/i)).toHaveCount(0);
   await expect(page.locator('textarea')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Create Market' })).toHaveCount(0);
