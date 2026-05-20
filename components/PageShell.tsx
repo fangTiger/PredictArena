@@ -10,7 +10,21 @@ function cx(...classes: Array<string | false | undefined>): string {
 
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col gap-8 px-5 py-8 text-slate-100 sm:px-8 lg:px-10">
+    <main className="arena-shell page-shell">
+      <nav className="arena-topbar" aria-label="PredictArena navigation">
+        <Link href="/arena" className="brand-lockup" aria-label="PredictArena arena">
+          <span className="brand-mark">PA</span>
+          <span>PredictArena</span>
+        </Link>
+        <div className="topbar-actions">
+          <Link href="/arena" className="icon-link">
+            Arena
+          </Link>
+          <Link href="/leaderboard" className="icon-link">
+            Leaderboard
+          </Link>
+        </div>
+      </nav>
       {children}
     </main>
   );
@@ -24,21 +38,12 @@ export function HeroPill({
   tone?: PillTone;
 }) {
   const toneClass = {
-    neutral: 'border-white/10 bg-white/5 text-slate-300',
-    mint: 'border-mint/30 bg-mint/10 text-mint',
-    sky: 'border-sky/30 bg-sky/10 text-sky'
+    neutral: 'status-chip',
+    mint: 'status-chip status-ready',
+    sky: 'status-chip status-live'
   }[tone];
 
-  return (
-    <span
-      className={cx(
-        'inline-flex rounded-full border px-3 py-1 text-xs uppercase tracking-[0.28em]',
-        toneClass
-      )}
-    >
-      {children}
-    </span>
-  );
+  return <span className={toneClass}>{children}</span>;
 }
 
 export function NavPill({
@@ -51,19 +56,13 @@ export function NavPill({
   tone?: PillTone;
 }) {
   const toneClass = {
-    neutral: 'border-white/10 bg-white/5 text-slate-200 hover:border-white/20 hover:text-white',
-    mint: 'border-mint/40 bg-mint/15 text-mint hover:bg-mint/20',
-    sky: 'border-sky/40 bg-sky/15 text-sky hover:bg-sky/20'
+    neutral: 'icon-link',
+    mint: 'icon-link status-ready',
+    sky: 'icon-link status-live'
   }[tone];
 
   return (
-    <Link
-      href={href}
-      className={cx(
-        'inline-flex rounded-full border px-5 py-3 text-sm font-medium transition',
-        toneClass
-      )}
-    >
+    <Link href={href} className={toneClass}>
       {children}
     </Link>
   );
@@ -85,43 +84,34 @@ export function PageHero({
   size?: HeroSize;
 }) {
   return (
-    <header className="overflow-hidden rounded-[30px] border border-white/10 bg-slate-950/70 shadow-panel backdrop-blur">
+    <header className="command-deck page-hero">
       <div
         className={cx(
-          'grid gap-8 p-6 lg:p-8',
+          'page-hero-grid',
           side ? 'lg:grid-cols-[1.3fr,0.9fr]' : 'lg:grid-cols-[1fr]'
         )}
       >
-        <div className="space-y-5">
-          <div className="flex flex-wrap gap-3">{eyebrow}</div>
-          <div className="space-y-4">
+        <div className="page-hero-copy">
+          <div className="deck-status-row">{eyebrow}</div>
+          <div>
             <h1
               className={cx(
-                'font-display leading-none text-white',
-                size === 'compact' ? 'text-4xl sm:text-5xl' : 'text-5xl sm:text-6xl'
+                'page-hero-title',
+                size === 'compact' ? 'page-hero-title-compact' : undefined
               )}
             >
               {title}
             </h1>
-            {description ? (
-              <p className="max-w-3xl text-sm leading-7 text-slate-300 sm:text-base">
-                {description}
-              </p>
-            ) : null}
+            {description ? <p className="deck-summary">{description}</p> : null}
           </div>
-          {actions ? <div className="flex flex-wrap gap-3">{actions}</div> : null}
+          {actions ? <div className="deck-status-row">{actions}</div> : null}
         </div>
-        {side ? (
-          <div className="relative overflow-hidden rounded-[26px] border border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(107,198,255,0.32),_transparent_32%),radial-gradient(circle_at_bottom_left,_rgba(142,246,193,0.18),_transparent_28%),linear-gradient(180deg,_rgba(15,23,42,0.95),_rgba(2,6,23,0.95))] p-6">
-            <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent,rgba(255,255,255,0.04),transparent)]" />
-            <div className="relative">{side}</div>
-          </div>
-        ) : null}
+        {side ? <div className="page-hero-side">{side}</div> : null}
       </div>
     </header>
   );
 }
 
 export function SectionLabel({ children }: { children: ReactNode }) {
-  return <p className="text-xs uppercase tracking-[0.3em] text-slate-500">{children}</p>;
+  return <p className="panel-kicker">{children}</p>;
 }

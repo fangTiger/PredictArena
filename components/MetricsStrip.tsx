@@ -10,14 +10,11 @@ export function MetricsStrip({ metrics }: { metrics: ArenaMetrics }) {
   ];
 
   return (
-    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <section className="deck-metrics">
       {cards.map((card) => (
-        <article
-          key={card.label}
-          className="rounded-[24px] border border-white/10 bg-slate-950/60 p-5 shadow-panel backdrop-blur"
-        >
-          <p className="text-xs uppercase tracking-[0.24em] text-slate-500">{card.label}</p>
-          <strong className="mt-3 block font-display text-3xl text-white">{card.value}</strong>
+        <article key={card.label} className="metric-card">
+          <span>{card.label}</span>
+          <strong>{card.value}</strong>
         </article>
       ))}
     </section>

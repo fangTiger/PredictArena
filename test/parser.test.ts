@@ -37,7 +37,7 @@ describe('parseCryptoMarket', () => {
     const sol = parseCryptoMarket(
       createCandidate({
         id: 'market-sol',
-        question: 'Will SOL fall below 130 by May 27, 2026?'
+        question: 'Will SOL dip to $80 in May?'
       }),
       new Date('2026-05-20T00:00:00.000Z')
     );
@@ -59,7 +59,7 @@ describe('parseCryptoMarket', () => {
     expect(eth.market.conditionType).toBe('EXPIRY_ABOVE');
 
     expect(sol.market.asset).toBe('SOL');
-    expect(sol.market.thresholdUsd).toBe(130);
+    expect(sol.market.thresholdUsd).toBe(80);
     expect(sol.market.conditionType).toBe('TOUCH_BELOW');
   });
 

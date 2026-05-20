@@ -6,6 +6,10 @@ import { formatBps, formatMicroUsdc } from '@/lib/utils/format';
 
 export const dynamic = 'force-dynamic';
 
+function formatAgentName(agentName: 'volatility' | 'momentum') {
+  return agentName === 'volatility' ? 'Volatility Agent' : 'Momentum Agent';
+}
+
 export default async function LeaderboardPage() {
   const store = getRuntimeStore();
   const leaderboard = await store.getLeaderboard();
@@ -25,29 +29,23 @@ export default async function LeaderboardPage() {
         description="Compare signal throughput, edge quality, bonded USDC, paper ROI, and demo Brier score across deterministic agents."
         actions={<NavPill href="/arena">Back to Arena</NavPill>}
         side={
-          <div className="space-y-6">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Tracked Agents</p>
-                <strong className="mt-2 block font-display text-2xl text-white">
-                  {leaderboard.length}
-                </strong>
-                <p className="mt-2 text-sm text-slate-400">volatility and momentum</p>
+          <div className="page-side-stack">
+            <div className="detail-stat-grid">
+              <div className="detail-stat">
+                <p className="panel-kicker">Tracked Agents</p>
+                <strong>{leaderboard.length}</strong>
+                <p>volatility and momentum</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Total Bonded</p>
-                <strong className="mt-2 block font-display text-2xl text-white">
-                  {formatMicroUsdc(metrics.totalBondedMicroUsdc)}
-                </strong>
-                <p className="mt-2 text-sm text-slate-400">Arc Testnet signal bonds</p>
+              <div className="detail-stat">
+                <p className="panel-kicker">Total Bonded</p>
+                <strong>{formatMicroUsdc(metrics.totalBondedMicroUsdc)}</strong>
+                <p>Arc Testnet signal bonds</p>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+            <div className="detail-card">
               <SectionLabel>Current Leader</SectionLabel>
-              <strong className="mt-2 block font-display text-2xl text-white">
-                {topAgent?.agentName ?? 'pending'}
-              </strong>
-              <p className="mt-2 text-sm text-slate-400">
+              <strong>{topAgent ? formatAgentName(topAgent.agentName) : 'pending'}</strong>
+              <p>
                 {topAgent ? `${formatBps(topAgent.averageEdgeBps)} average edge` : 'Run agents to populate the table.'}
               </p>
             </div>

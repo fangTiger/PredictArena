@@ -1,13 +1,11 @@
 export function AgentBadge({ agent }: { agent: 'volatility' | 'momentum' }) {
+  const label = agent === 'volatility' ? 'Volatility Agent' : 'Momentum Agent';
+
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs uppercase tracking-[0.24em] ${
-        agent === 'volatility'
-          ? 'border-mint/30 bg-mint/10 text-mint'
-          : 'border-sky/30 bg-sky/10 text-sky'
-      }`}
+      className={`status-chip ${agent === 'volatility' ? 'status-ready' : 'status-live'}`}
     >
-      {agent}
+      {label}
     </span>
   );
 }

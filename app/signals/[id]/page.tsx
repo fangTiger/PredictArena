@@ -8,6 +8,10 @@ import { buildSignalExplanation, normalizeSignalIdParam } from '@/lib/utils/sign
 
 export const dynamic = 'force-dynamic';
 
+function formatAgentName(agentName: 'volatility' | 'momentum') {
+  return agentName === 'volatility' ? 'Volatility Agent' : 'Momentum Agent';
+}
+
 export default async function SignalDetailPage({
   params
 }: {
@@ -34,7 +38,7 @@ export default async function SignalDetailPage({
           <>
             <HeroPill tone="sky">Signal Detail</HeroPill>
             <HeroPill tone={signal.agentName === 'volatility' ? 'mint' : 'sky'}>
-              {signal.agentName}
+              {formatAgentName(signal.agentName)}
             </HeroPill>
           </>
         }
@@ -48,37 +52,31 @@ export default async function SignalDetailPage({
           </>
         }
         side={
-          <div className="space-y-6">
-            <div className="flex flex-wrap items-center gap-3">
+          <div className="page-side-stack">
+            <div className="tag-row">
               <AgentBadge agent={signal.agentName} />
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-200">
+              <span className="status-chip">
                 {signal.side}
               </span>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-slate-400">
+              <span className="status-chip status-amber">
                 {signal.confidence} confidence
               </span>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Signal Edge</p>
-                <strong className="mt-2 block font-display text-2xl text-white">
-                  {formatBps(signal.edgeBps)}
-                </strong>
-                <p className="mt-2 text-sm text-slate-400">
-                  Kelly cap {formatBps(signal.kellyBps)}
-                </p>
+            <div className="detail-stat-grid">
+              <div className="detail-stat">
+                <p className="panel-kicker">Signal Edge</p>
+                <strong>{formatBps(signal.edgeBps)}</strong>
+                <p>Kelly cap {formatBps(signal.kellyBps)}</p>
               </div>
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Bond</p>
-                <strong className="mt-2 block font-display text-2xl text-white">
-                  {formatMicroUsdc(signal.stakeMicroUsdc)}
-                </strong>
-                <p className="mt-2 text-sm text-slate-400">{signal.status}</p>
+              <div className="detail-stat">
+                <p className="panel-kicker">Bond</p>
+                <strong>{formatMicroUsdc(signal.stakeMicroUsdc)}</strong>
+                <p>{signal.status}</p>
               </div>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-slate-950/50 p-4">
+            <div className="detail-card">
               <SectionLabel>Arc Tx</SectionLabel>
-              <div className="mt-2">
+              <div>
                 <TxLink hash={signal.arcTxHash} />
               </div>
             </div>
@@ -86,136 +84,130 @@ export default async function SignalDetailPage({
         }
       />
 
-      <section className="grid items-start gap-6 lg:grid-cols-[1.4fr,0.9fr]">
-        <article className="rounded-[28px] border border-white/10 bg-slate-950/60 p-6 shadow-panel backdrop-blur">
-          <h2 className="font-display text-2xl text-white">Deterministic Thesis</h2>
-          <p className="mt-4 text-sm leading-7 text-slate-300 sm:text-base">{explanation}</p>
+      <section className="detail-layout">
+        <article className="detail-card detail-card-large">
+          <h2 className="detail-title">Deterministic Thesis</h2>
+          <p className="detail-copy">{explanation}</p>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Signal Edge</p>
-              <strong className="mt-2 block font-display text-3xl text-white">
-                {formatBps(signal.edgeBps)}
-              </strong>
-              <p className="mt-2 text-sm text-slate-400">
+          <div className="detail-stat-grid detail-stat-grid-spaced">
+            <div className="detail-stat">
+              <p className="panel-kicker">Signal Edge</p>
+              <strong>{formatBps(signal.edgeBps)}</strong>
+              <p>
                 Market {formatBps(signal.marketPriceBps)} vs agent {formatBps(signal.agentProbabilityBps)}
               </p>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Bond</p>
-              <strong className="mt-2 block font-display text-3xl text-white">
-                {formatMicroUsdc(signal.stakeMicroUsdc)}
-              </strong>
-              <p className="mt-2 text-sm text-slate-400">Kelly cap {formatBps(signal.kellyBps)}</p>
+            <div className="detail-stat">
+              <p className="panel-kicker">Bond</p>
+              <strong>{formatMicroUsdc(signal.stakeMicroUsdc)}</strong>
+              <p>Kelly cap {formatBps(signal.kellyBps)}</p>
             </div>
           </div>
         </article>
 
-        <aside className="rounded-[28px] border border-white/10 bg-slate-950/60 p-6 shadow-panel backdrop-blur">
-          <h2 className="font-display text-2xl text-white">Audit Trail</h2>
-          <dl className="mt-5 space-y-4 text-sm text-slate-300">
+        <aside className="detail-card audit-card">
+          <h2 className="detail-title">Audit Trail</h2>
+          <dl className="audit-list">
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Signal ID</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-300">{signal.id}</dd>
+              <dt>Signal ID</dt>
+              <dd className="audit-mono">{signal.id}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Run ID</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-300">{signal.runId}</dd>
+              <dt>Run ID</dt>
+              <dd className="audit-mono">{signal.runId}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Market ID</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-300">{signal.marketId}</dd>
+              <dt>Market ID</dt>
+              <dd className="audit-mono">{signal.marketId}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Asset</dt>
-              <dd className="mt-1 text-base text-white">{signal.asset}</dd>
+              <dt>Asset</dt>
+              <dd>{signal.asset}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Condition Type</dt>
-              <dd className="mt-1 text-base text-white">{signal.conditionType}</dd>
+              <dt>Condition Type</dt>
+              <dd>{signal.conditionType}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Status</dt>
-              <dd className="mt-1 text-base text-white">{signal.status}</dd>
+              <dt>Status</dt>
+              <dd>{signal.status}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Source</dt>
-              <dd className="mt-1 text-base text-white">{signal.source}</dd>
+              <dt>Source</dt>
+              <dd>{signal.source}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Created</dt>
-              <dd className="mt-1 text-base text-white">{signal.createdAt}</dd>
+              <dt>Created</dt>
+              <dd>{signal.createdAt}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Updated</dt>
-              <dd className="mt-1 text-base text-white">{signal.updatedAt}</dd>
+              <dt>Updated</dt>
+              <dd>{signal.updatedAt}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Threshold</dt>
-              <dd className="mt-1 text-base text-white">{formatUsd(signal.thresholdUsd)}</dd>
+              <dt>Threshold</dt>
+              <dd>{formatUsd(signal.thresholdUsd)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Expiry</dt>
-              <dd className="mt-1 text-base text-white">{signal.expiresAt}</dd>
+              <dt>Expiry</dt>
+              <dd>{signal.expiresAt}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">pYes</dt>
-              <dd className="mt-1 text-base text-white">{formatBps(signal.pYesBps)}</dd>
+              <dt>pYes</dt>
+              <dd>{formatBps(signal.pYesBps)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">YES Price</dt>
-              <dd className="mt-1 text-base text-white">{formatBps(signal.yesPriceBps)}</dd>
+              <dt>YES Price</dt>
+              <dd>{formatBps(signal.yesPriceBps)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Confidence Bps</dt>
-              <dd className="mt-1 text-base text-white">{formatBps(signal.confidenceBps)}</dd>
+              <dt>Confidence Bps</dt>
+              <dd>{formatBps(signal.confidenceBps)}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Risk Flags</dt>
-              <dd className="mt-1 text-base text-white">
+              <dt>Risk Flags</dt>
+              <dd>
                 {signal.riskFlags.length > 0 ? signal.riskFlags.join(', ') : 'None'}
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Resolution</dt>
-              <dd className="mt-1 text-base text-white">{resolution}</dd>
+              <dt>Resolution</dt>
+              <dd>{resolution}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Model Hash</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-300">{signal.modelHash}</dd>
+              <dt>Model Hash</dt>
+              <dd className="audit-mono">{signal.modelHash}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Data Hash</dt>
-              <dd className="mt-1 break-all font-mono text-xs text-slate-300">{signal.dataHash}</dd>
+              <dt>Data Hash</dt>
+              <dd className="audit-mono">{signal.dataHash}</dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Model Params</dt>
-              <dd className="mt-1">
-                <pre className="overflow-x-auto rounded-2xl border border-white/10 bg-black/30 p-3 font-mono text-xs leading-5 text-slate-300">
-                  {modelParams}
-                </pre>
+              <dt>Model Params</dt>
+              <dd>
+                <pre className="audit-pre">{modelParams}</pre>
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Arc Tx</dt>
-              <dd className="mt-1">
+              <dt>Arc Tx</dt>
+              <dd>
                 <TxLink hash={signal.arcTxHash} />
               </dd>
             </div>
             <div>
-              <dt className="text-xs uppercase tracking-[0.24em] text-slate-500">Market Link</dt>
-              <dd className="mt-1">
+              <dt>Market Link</dt>
+              <dd>
                 {signal.marketUrl ? (
                   <a
                     href={signal.marketUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-sky underline-offset-4 hover:underline"
+                    className="tx-link"
                   >
                     Open Polymarket market
                   </a>
                 ) : (
-                  <span className="text-slate-500">Unavailable</span>
+                  <span className="muted">Unavailable</span>
                 )}
               </dd>
             </div>

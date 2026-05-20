@@ -18,6 +18,21 @@ export interface FetchCandidateMarketsResult {
   markets: ParsedCryptoMarket[];
 }
 
+const GAMMA_PAGE_SIZE = 100;
+const GAMMA_MAX_PAGES = 5;
+const CRYPTO_SEARCH_QUERIES = ['bitcoin', 'ethereum', 'solana'] as const;
+
+interface PublicSearchEvent {
+  id?: string;
+  slug?: string;
+  title?: string;
+  markets?: RawPolymarketMarket[];
+}
+
+interface PublicSearchPayload {
+  events?: PublicSearchEvent[];
+}
+
 function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
@@ -43,9 +58,80 @@ async function fetchLiveMarkets(
   fetchImpl: typeof fetch,
   gammaUrl: string
 ): Promise<RawPolymarketMarket[]> {
+  const markets: RawPolymarketMarket[] = [];
+  const errors: Error[] = [];
+
+  try {
+    markets.push(...(await fetchPaginatedMarkets(fetchImpl, gammaUrl)));
+  } catch (error) {
+    errors.push(error instanceof Error ? error : new Error('gamma_markets_failed'));
+  }
+
+  for (const query of CRYPTO_SEARCH_QUERIES) {
+    try {
+      markets.push(...(await fetchPublicSearchMarkets(fetchImpl, gammaUrl, query)));
+    } catch (error) {
+      errors.push(error instanceof Error ? error : new Error(`gamma_search_${query}_failed`));
+    }
+  }
+
+  if (markets.length === 0 && errors.length > 0) {
+    throw errors[0];
+  }
+
+  return dedupeMarkets(markets);
+}
+
+async function fetchPaginatedMarkets(
+  fetchImpl: typeof fetch,
+  gammaUrl: string
+): Promise<RawPolymarketMarket[]> {
+  const markets: RawPolymarketMarket[] = [];
+
+  for (let page = 0; page < GAMMA_MAX_PAGES; page += 1) {
+    const offset = page * GAMMA_PAGE_SIZE;
+    const url = new URL(gammaUrl);
+    url.searchParams.set('active', 'true');
+    url.searchParams.set('closed', 'false');
+    url.searchParams.set('limit', String(GAMMA_PAGE_SIZE));
+    url.searchParams.set('offset', String(offset));
+
+    const response = await fetchImpl(url, {
+      headers: {
+        accept: 'application/json'
+      },
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error(`gamma_${response.status}`);
+    }
+
+    const payload = (await response.json()) as unknown;
+    if (!Array.isArray(payload)) {
+      throw new Error('gamma_invalid_payload');
+    }
+
+    markets.push(...(payload as RawPolymarketMarket[]));
+
+    if (payload.length < GAMMA_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return markets;
+}
+
+async function fetchPublicSearchMarkets(
+  fetchImpl: typeof fetch,
+  gammaUrl: string,
+  query: string
+): Promise<RawPolymarketMarket[]> {
   const url = new URL(gammaUrl);
-  url.searchParams.set('active', 'true');
-  url.searchParams.set('closed', 'false');
+  url.pathname = '/public-search';
+  url.search = '';
+  url.searchParams.set('q', query);
+  url.searchParams.set('limit_per_type', '10');
 
   const response = await fetchImpl(url, {
     headers: {
@@ -55,15 +141,34 @@ async function fetchLiveMarkets(
   });
 
   if (!response.ok) {
-    throw new Error(`gamma_${response.status}`);
+    throw new Error(`gamma_search_${response.status}`);
   }
 
-  const payload = (await response.json()) as unknown;
-  if (!Array.isArray(payload)) {
-    throw new Error('gamma_invalid_payload');
+  const payload = (await response.json()) as PublicSearchPayload;
+  const markets: RawPolymarketMarket[] = [];
+
+  for (const event of payload.events ?? []) {
+    for (const market of event.markets ?? []) {
+      markets.push({
+        ...market,
+        eventId: market.eventId ?? event.id ?? null,
+        eventSlug: event.slug,
+        eventTitle: event.title
+      });
+    }
   }
 
-  return payload as RawPolymarketMarket[];
+  return markets;
+}
+
+function dedupeMarkets(markets: RawPolymarketMarket[]): RawPolymarketMarket[] {
+  const deduped = new Map<string, RawPolymarketMarket>();
+
+  for (const market of markets) {
+    deduped.set(market.id, market);
+  }
+
+  return [...deduped.values()];
 }
 
 function parseMarkets(

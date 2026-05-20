@@ -12,6 +12,7 @@ typechain-types
 prisma/*.db
 prisma/*.db-journal
 .env
+.env*.local
 data/runtime/
 *.tsbuildinfo
 .codex/

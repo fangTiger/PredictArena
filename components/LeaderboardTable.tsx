@@ -2,46 +2,50 @@ import Link from 'next/link';
 import type { LeaderboardEntry } from '@/lib/persistence/store';
 import { formatBps, formatMicroUsdc } from '@/lib/utils/format';
 
+function formatAgentName(agentName: LeaderboardEntry['agentName']) {
+  return agentName === 'volatility' ? 'Volatility Agent' : 'Momentum Agent';
+}
+
 export function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
   return (
-    <section className="overflow-hidden rounded-[28px] border border-white/10 bg-slate-950/60 shadow-panel backdrop-blur">
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-sm text-slate-300">
-          <thead className="bg-white/5 text-xs uppercase tracking-[0.24em] text-slate-500">
+    <section className="leaderboard-table-shell">
+      <div className="table-scroll">
+        <table className="leaderboard-table">
+          <thead>
             <tr>
-              <th className="px-5 py-4">Rank</th>
-              <th className="px-5 py-4">Agent</th>
-              <th className="px-5 py-4">Generated</th>
-              <th className="px-5 py-4">Committed</th>
-              <th className="px-5 py-4">Avg Edge</th>
-              <th className="px-5 py-4">Bonded</th>
-              <th className="px-5 py-4">Refunded</th>
-              <th className="px-5 py-4">Slashed</th>
-              <th className="px-5 py-4">Paper ROI</th>
-              <th className="px-5 py-4">Brier</th>
-              <th className="px-5 py-4">Confidence Mix</th>
+              <th>Rank</th>
+              <th>Agent</th>
+              <th>Generated</th>
+              <th>Committed</th>
+              <th>Avg Edge</th>
+              <th>Bonded</th>
+              <th>Refunded</th>
+              <th>Slashed</th>
+              <th>Paper ROI</th>
+              <th>Brier</th>
+              <th>Confidence Mix</th>
             </tr>
           </thead>
           <tbody>
             {entries.map((entry) => (
-              <tr key={entry.agentName} className="border-t border-white/10">
-                <td className="px-5 py-4 text-white">{entry.rank}</td>
-                <td className="px-5 py-4 text-white">
-                  <Link href="/arena" className="hover:text-mint">
-                    {entry.agentName}
+              <tr key={entry.agentName}>
+                <td>{entry.rank}</td>
+                <td>
+                  <Link href="/arena" className="table-agent-link">
+                    {formatAgentName(entry.agentName)}
                   </Link>
                 </td>
-                <td className="px-5 py-4">{entry.generatedSignals}</td>
-                <td className="px-5 py-4">{entry.committedSignals}</td>
-                <td className="px-5 py-4">{formatBps(entry.averageEdgeBps)}</td>
-                <td className="px-5 py-4">{formatMicroUsdc(entry.totalBondedMicroUsdc)}</td>
-                <td className="px-5 py-4">{formatMicroUsdc(entry.refundedMicroUsdc)}</td>
-                <td className="px-5 py-4">{formatMicroUsdc(entry.slashedMicroUsdc)}</td>
-                <td className="px-5 py-4">{formatBps(entry.paperRoiBps)}</td>
-                <td className="px-5 py-4">
+                <td>{entry.generatedSignals}</td>
+                <td>{entry.committedSignals}</td>
+                <td>{formatBps(entry.averageEdgeBps)}</td>
+                <td>{formatMicroUsdc(entry.totalBondedMicroUsdc)}</td>
+                <td>{formatMicroUsdc(entry.refundedMicroUsdc)}</td>
+                <td>{formatMicroUsdc(entry.slashedMicroUsdc)}</td>
+                <td>{formatBps(entry.paperRoiBps)}</td>
+                <td>
                   {entry.brierScoreBps === null ? 'Pending' : formatBps(entry.brierScoreBps)}
                 </td>
-                <td className="px-5 py-4">
+                <td>
                   L {entry.confidenceDistribution.low} / M {entry.confidenceDistribution.medium} / H{' '}
                   {entry.confidenceDistribution.high}
                 </td>

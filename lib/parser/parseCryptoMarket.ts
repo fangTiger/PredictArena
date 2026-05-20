@@ -28,7 +28,7 @@ const ASSET_PATTERNS: Array<{ asset: SupportedAsset; pattern: RegExp }> = [
 ];
 
 const TOUCH_ABOVE_PATTERN = /\b(touch|reach|surpass|exceed|hit)\b/i;
-const TOUCH_BELOW_PATTERN = /\b(drop|fall|touch below)\b/i;
+const TOUCH_BELOW_PATTERN = /\b(drop|fall|dip|touch below)\b/i;
 const EXPIRY_ABOVE_PATTERN = /\b(close above|above|over|higher)\b/i;
 const EXPIRY_BELOW_PATTERN = /\b(close below|below|under|lower)\b/i;
 const THRESHOLD_PATTERN = /\$?\s*(\d{1,3}(?:,\d{3})*(?:\.\d+)?|\d+(?:\.\d+)?)(k)?\b/i;
