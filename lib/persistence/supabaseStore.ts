@@ -112,13 +112,13 @@ export function createSupabaseStore(options: SupabaseStoreOptions): PersistenceS
     async getSignal(signalId: string) {
       return (await this.listSignals()).find((signal) => signal.id === signalId);
     },
-    async markSignalCommitted(signalId: string, txHash: `0x${string}`) {
-      const signal = await fallback.markSignalCommitted(signalId, txHash);
+    async markSignalCommitted(signalId: string, txHash: `0x${string}`, signalRecordId?: number | null) {
+      const signal = await fallback.markSignalCommitted(signalId, txHash, signalRecordId);
       await syncToRemote();
       return signal;
     },
-    async resolveSignal(signalId: string, outcomeCorrect: boolean, resolvedAt?: string) {
-      const signal = await fallback.resolveSignal(signalId, outcomeCorrect, resolvedAt);
+    async resolveSignal(signalId: string, outcomeCorrect: boolean, resolvedAt?: string, details = {}) {
+      const signal = await fallback.resolveSignal(signalId, outcomeCorrect, resolvedAt, details);
       await syncToRemote();
       return signal;
     },

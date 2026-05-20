@@ -4,7 +4,7 @@ import {
 } from '@/lib/config/constants';
 import { parseServerEnv, type ServerEnvConfig } from '@/lib/config/env';
 import { createArcClients } from '@/lib/arc/client';
-import { commitArenaSignal } from '@/lib/arc/signalBondArena';
+import { commitArenaSignal, extractSignalRecordIdFromReceipt } from '@/lib/arc/signalBondArena';
 import { ensureUsdcAllowance } from '@/lib/arc/usdc';
 import type { AgentSignal } from '@/lib/polymarket/types';
 import type { PersistenceStore } from '@/lib/persistence/store';
@@ -18,7 +18,7 @@ export async function commitSignalToArena(
   _store: PersistenceStore,
   signal: AgentSignal,
   deps: CommitSignalDeps = {}
-): Promise<{ txHash: `0x${string}` }> {
+): Promise<{ txHash: `0x${string}`; signalRecordId: number | null }> {
   const env = deps.env ?? parseServerEnv(process.env);
   const privateKey =
     signal.agentName === 'volatility' ? env.agentKeys.volatility : env.agentKeys.momentum;
@@ -50,7 +50,10 @@ export async function commitSignalToArena(
     arenaAddress: env.arc.signalBondArenaAddress,
     signal
   });
-  await publicClient.waitForTransactionReceipt({ hash: txHash });
+  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-  return { txHash };
+  return {
+    txHash,
+    signalRecordId: extractSignalRecordIdFromReceipt(receipt as never)
+  };
 }

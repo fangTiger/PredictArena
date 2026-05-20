@@ -243,6 +243,13 @@ describe('PredictArena API routes', () => {
     expect(missingTokenResponse.status).toBe(401);
     expect(invalidTokenResponse.status).toBe(403);
     expect(okResponse.status).toBe(200);
+    expect(await okResponse.json()).toMatchObject({
+      signal: {
+        resolution: {
+          source: 'demo_admin'
+        }
+      }
+    });
   });
 
   it('POST /api/resolve-demo returns controlled invalid_request after admin token succeeds', async () => {
@@ -270,5 +277,376 @@ describe('PredictArena API routes', () => {
         })
       ])
     );
+  });
+
+  it('POST /api/resolve-signals automatically resolves expired committed signals and updates leaderboard scoring', async () => {
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
+    const store = createLocalStore({ storagePath: process.env.PREDICTARENA_LOCAL_STORE_PATH! });
+
+    await store.saveAgentRun({
+      runId: 'run-auto-resolve',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-18T00:00:00.000Z',
+      signals: [
+        {
+          id: 'auto-resolve-signal',
+          runId: 'run-auto-resolve',
+          marketId: 'demo-btc-auto',
+          marketQuestion: 'Will BTC be above $100,000 on May 19, 2026?',
+          marketUrl: null,
+          asset: 'BTC',
+          conditionType: 'EXPIRY_ABOVE',
+          thresholdUsd: 100000,
+          expiresAt: '2026-05-19T00:00:00.000Z',
+          agentName: 'volatility',
+          modelVersion: 'volatility-gbm-v1',
+          modelParams: { sigma: 0.7 },
+          modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+          dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+          side: 'YES',
+          status: 'committed',
+          confidence: 'HIGH',
+          confidenceBps: 7600,
+          marketPriceBps: 5400,
+          agentProbabilityBps: 7600,
+          yesPriceBps: 5400,
+          pYesBps: 7600,
+          edgeBps: 2200,
+          kellyBps: 300,
+          stakeMicroUsdc: 50000,
+          riskFlags: [],
+          arcTxHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          createdAt: '2026-05-18T00:00:00.000Z',
+          updatedAt: '2026-05-18T00:00:00.000Z',
+          source: 'demo_snapshot',
+          resolution: null
+        }
+      ]
+    });
+    setRuntimeStoreForTests(store);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json([
+          [1_779_062_400, 98_000, 99_000, 98_500, 98_900, 100],
+          [1_779_148_800, 100_000, 102_000, 100_500, 101_200, 100]
+        ])
+      )
+    );
+    const { POST } = await import('@/app/api/resolve-signals/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/resolve-signals', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+    const leaderboard = await store.getLeaderboard();
+
+    expect(response.status).toBe(200);
+    expect(payload.resolved).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          signalId: 'auto-resolve-signal',
+          yesOutcome: true,
+          outcomeCorrect: true
+        })
+      ])
+    );
+    expect(leaderboard[0]).toMatchObject({
+      resolvedSignals: 1,
+      accuracyBps: 10000,
+      brierScoreBps: 576,
+      refundedMicroUsdc: 50000,
+      slashedMicroUsdc: 0
+    });
+  });
+
+  it('POST /api/resolve-signals does not trigger onchain owner resolution without admin token', async () => {
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
+    const store = createLocalStore({ storagePath: process.env.PREDICTARENA_LOCAL_STORE_PATH! });
+
+    await store.saveAgentRun({
+      runId: 'run-auto-no-admin',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-18T00:00:00.000Z',
+      signals: [
+        {
+          id: 'auto-no-admin-signal',
+          runId: 'run-auto-no-admin',
+          marketId: 'demo-btc-auto-admin',
+          marketQuestion: 'Will BTC be above $100,000 on May 19, 2026?',
+          marketUrl: null,
+          asset: 'BTC',
+          conditionType: 'EXPIRY_ABOVE',
+          thresholdUsd: 100000,
+          expiresAt: '2026-05-19T00:00:00.000Z',
+          agentName: 'volatility',
+          modelVersion: 'volatility-gbm-v1',
+          modelParams: { sigma: 0.7 },
+          modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+          dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+          side: 'YES',
+          status: 'committed',
+          confidence: 'HIGH',
+          confidenceBps: 7600,
+          marketPriceBps: 5400,
+          agentProbabilityBps: 7600,
+          yesPriceBps: 5400,
+          pYesBps: 7600,
+          edgeBps: 2200,
+          kellyBps: 300,
+          stakeMicroUsdc: 50000,
+          riskFlags: [],
+          arcTxHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          arcSignalRecordId: 7,
+          createdAt: '2026-05-18T00:00:00.000Z',
+          updatedAt: '2026-05-18T00:00:00.000Z',
+          source: 'demo_snapshot',
+          resolution: null
+        }
+      ]
+    });
+    setRuntimeStoreForTests(store);
+    vi.stubEnv('SIGNAL_BOND_ARENA_ADDRESS', '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    vi.stubEnv('ADMIN_PRIVATE_KEY', '0x1111111111111111111111111111111111111111111111111111111111111111');
+    vi.stubEnv('ADMIN_RESOLVE_TOKEN', 'demo-token');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json([
+          [1_779_062_400, 98_000, 99_000, 98_500, 98_900, 100],
+          [1_779_148_800, 100_000, 102_000, 100_500, 101_200, 100]
+        ])
+      )
+    );
+    const { POST } = await import('@/app/api/resolve-signals/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/resolve-signals', {
+        method: 'POST',
+        body: JSON.stringify({}),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.onchain).toMatchObject({
+      status: 'skipped_admin_token',
+      txHash: null
+    });
+    expect(payload.resolved).toHaveLength(1);
+  });
+
+  it('POST /api/resolve-signals returns controlled invalid_request for malformed JSON', async () => {
+    const { POST } = await import('@/app/api/resolve-signals/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/resolve-signals', {
+        method: 'POST',
+        body: '{',
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(payload.reason).toBe('invalid_request');
+  });
+
+  it('POST /api/admin/resolve-demo is token protected and records demo-only resolution metadata', async () => {
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
+    const store = createLocalStore({ storagePath: process.env.PREDICTARENA_LOCAL_STORE_PATH! });
+
+    await store.saveAgentRun({
+      runId: 'run-admin-resolve',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-18T00:00:00.000Z',
+      signals: [
+        {
+          id: 'admin-resolve-signal',
+          runId: 'run-admin-resolve',
+          marketId: 'demo-btc-admin',
+          marketQuestion: 'Will BTC be above $100,000 on May 19, 2026?',
+          marketUrl: null,
+          asset: 'BTC',
+          conditionType: 'EXPIRY_ABOVE',
+          thresholdUsd: 100000,
+          expiresAt: '2026-05-19T00:00:00.000Z',
+          agentName: 'momentum',
+          modelVersion: 'momentum-gbm-v1',
+          modelParams: { sigma: 0.7 },
+          modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111',
+          dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222',
+          side: 'NO',
+          status: 'committed',
+          confidence: 'HIGH',
+          confidenceBps: 7600,
+          marketPriceBps: 4600,
+          agentProbabilityBps: 7600,
+          yesPriceBps: 5400,
+          pYesBps: 2400,
+          edgeBps: 2200,
+          kellyBps: 300,
+          stakeMicroUsdc: 50000,
+          riskFlags: [],
+          arcTxHash: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+          createdAt: '2026-05-18T00:00:00.000Z',
+          updatedAt: '2026-05-18T00:00:00.000Z',
+          source: 'demo_snapshot',
+          resolution: null
+        }
+      ]
+    });
+    setRuntimeStoreForTests(store);
+    vi.stubEnv('ADMIN_RESOLVE_TOKEN', 'demo-token');
+    const { POST } = await import('@/app/api/admin/resolve-demo/route');
+
+    const invalidTokenResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: JSON.stringify({ signalId: 'admin-resolve-signal', outcomeCorrect: true }),
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'wrong-token'
+        }
+      })
+    );
+    const okResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: JSON.stringify({ signalId: 'admin-resolve-signal', outcomeCorrect: true }),
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'demo-token'
+        }
+      })
+    );
+    const payload = await okResponse.json();
+
+    expect(invalidTokenResponse.status).toBe(403);
+    expect(okResponse.status).toBe(200);
+    expect(payload.signal.resolution).toMatchObject({
+      outcomeCorrect: true,
+      yesOutcome: false,
+      source: 'demo_admin'
+    });
+  });
+
+  it('demo resolve rejects uncommitted, already resolved, and malformed requests with controlled reasons', async () => {
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
+    const store = createLocalStore({ storagePath: process.env.PREDICTARENA_LOCAL_STORE_PATH! });
+
+    const baseSignal = {
+      id: 'demo-guard-signal',
+      runId: 'run-demo-guard',
+      marketId: 'demo-btc-guard',
+      marketQuestion: 'Will BTC be above $100,000 on May 19, 2026?',
+      marketUrl: null,
+      asset: 'BTC' as const,
+      conditionType: 'EXPIRY_ABOVE' as const,
+      thresholdUsd: 100000,
+      expiresAt: '2026-05-19T00:00:00.000Z',
+      agentName: 'volatility' as const,
+      modelVersion: 'volatility-gbm-v1',
+      modelParams: { sigma: 0.7 },
+      modelHash: '0x1111111111111111111111111111111111111111111111111111111111111111' as const,
+      dataHash: '0x2222222222222222222222222222222222222222222222222222222222222222' as const,
+      side: 'YES' as const,
+      status: 'generated' as const,
+      confidence: 'HIGH' as const,
+      confidenceBps: 7600,
+      marketPriceBps: 5400,
+      agentProbabilityBps: 7600,
+      yesPriceBps: 5400,
+      pYesBps: 7600,
+      edgeBps: 2200,
+      kellyBps: 300,
+      stakeMicroUsdc: 50000,
+      riskFlags: [],
+      arcTxHash: null,
+      createdAt: '2026-05-18T00:00:00.000Z',
+      updatedAt: '2026-05-18T00:00:00.000Z',
+      source: 'demo_snapshot' as const,
+      resolution: null
+    };
+
+    await store.saveAgentRun({
+      runId: 'run-demo-guard',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-18T00:00:00.000Z',
+      signals: [baseSignal]
+    });
+    setRuntimeStoreForTests(store);
+    vi.stubEnv('ADMIN_RESOLVE_TOKEN', 'demo-token');
+    const { POST } = await import('@/app/api/admin/resolve-demo/route');
+
+    const uncommittedResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: JSON.stringify({ signalId: 'demo-guard-signal', outcomeCorrect: true }),
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'demo-token'
+        }
+      })
+    );
+    await store.saveAgentRun({
+      runId: 'run-demo-guard',
+      source: 'demo_snapshot',
+      generatedAt: '2026-05-18T00:00:00.000Z',
+      signals: [
+        {
+          ...baseSignal,
+          status: 'committed',
+          arcTxHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+        }
+      ]
+    });
+    const okResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: JSON.stringify({ signalId: 'demo-guard-signal', outcomeCorrect: true }),
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'demo-token'
+        }
+      })
+    );
+    const duplicateResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: JSON.stringify({ signalId: 'demo-guard-signal', outcomeCorrect: true }),
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'demo-token'
+        }
+      })
+    );
+    const malformedResponse = await POST(
+      new Request('http://localhost/api/admin/resolve-demo', {
+        method: 'POST',
+        body: '{',
+        headers: {
+          'content-type': 'application/json',
+          'x-admin-resolve-token': 'demo-token'
+        }
+      })
+    );
+
+    expect(uncommittedResponse.status).toBe(409);
+    expect(await uncommittedResponse.json()).toMatchObject({ reason: 'signal_not_committed' });
+    expect(okResponse.status).toBe(200);
+    expect(duplicateResponse.status).toBe(409);
+    expect(await duplicateResponse.json()).toMatchObject({ reason: 'signal_already_resolved' });
+    expect(malformedResponse.status).toBe(400);
+    expect(await malformedResponse.json()).toMatchObject({ reason: 'invalid_request' });
   });
 });

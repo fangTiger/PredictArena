@@ -129,6 +129,21 @@ contract SignalBondArena {
     }
 
     function resolveSignal(uint256 signalRecordId, bool outcomeCorrect) external onlyOwner {
+        _resolveSignal(signalRecordId, outcomeCorrect);
+    }
+
+    function resolveSignalsBulk(
+        uint256[] calldata signalRecordIds,
+        bool[] calldata outcomeCorrectValues
+    ) external onlyOwner {
+        require(signalRecordIds.length == outcomeCorrectValues.length, "length mismatch");
+
+        for (uint256 index = 0; index < signalRecordIds.length; index++) {
+            _resolveSignal(signalRecordIds[index], outcomeCorrectValues[index]);
+        }
+    }
+
+    function _resolveSignal(uint256 signalRecordId, bool outcomeCorrect) internal {
         Signal storage signal = signals[signalRecordId];
         require(signal.agent != address(0), "unknown signal");
         require(!signal.resolved, "already resolved");

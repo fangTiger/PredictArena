@@ -5,7 +5,7 @@ export function MetricsStrip({ metrics }: { metrics: ArenaMetrics }) {
   const cards = [
     { label: 'Generated Signals', value: String(metrics.generatedSignals) },
     { label: 'Committed Signals', value: String(metrics.committedSignals) },
-    { label: 'Average Edge', value: formatBps(metrics.averageEdgeBps) },
+    { label: 'Resolved Signals', value: String(metrics.resolvedSignals) },
     { label: 'Bonded USDC', value: formatMicroUsdc(metrics.totalBondedMicroUsdc) }
   ];
 

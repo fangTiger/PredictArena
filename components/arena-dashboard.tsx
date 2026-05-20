@@ -110,6 +110,7 @@ const copy = {
     signalBelowThreshold: 'Signal below commit threshold',
     signalBoard: 'Signal Board',
     signals: 'Signals',
+    resolvedSignals: 'Resolved',
     skipped: 'Skipped',
     source: 'Source',
     status: 'Status',
@@ -177,6 +178,7 @@ const copy = {
     signalBelowThreshold: '信号低于提交阈值',
     signalBoard: '信号看板',
     signals: '信号',
+    resolvedSignals: '已结算',
     skipped: '跳过',
     source: '来源',
     status: '状态',
@@ -597,7 +599,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     <main className="arena-shell" data-theme={theme}>
       <nav className="arena-topbar" aria-label="PredictArena controls">
         <Link href="/arena" className="brand-lockup" aria-label="PredictArena arena">
-          <span className="brand-mark">PA</span>
+          <span className="brand-mark" aria-hidden="true" />
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
@@ -704,7 +706,9 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
               {t.signals}
             </span>
             <strong>{arena.signals.length || metrics.generatedSignals}</strong>
-            <small>{t.deterministicAgentOutput}</small>
+            <small>
+              {metrics.resolvedSignals} {t.resolvedSignals}
+            </small>
           </article>
           <article className="metric-card">
             <span>

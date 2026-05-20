@@ -2,7 +2,7 @@ import path from 'node:path';
 import { parseServerEnv } from '@/lib/config/env';
 import { createLocalStore } from '@/lib/persistence/localStore';
 import { createSupabaseStore } from '@/lib/persistence/supabaseStore';
-import type { AgentSignal, ParsedCryptoMarket } from '@/lib/polymarket/types';
+import type { AgentSignal, ParsedCryptoMarket, ResolutionSource } from '@/lib/polymarket/types';
 
 export interface LatestScanState {
   source: 'live' | 'demo_snapshot';
@@ -40,6 +40,8 @@ export interface LeaderboardEntry {
   agentName: 'volatility' | 'momentum';
   generatedSignals: number;
   committedSignals: number;
+  resolvedSignals: number;
+  accuracyBps: number;
   averageEdgeBps: number;
   totalBondedMicroUsdc: number;
   refundedMicroUsdc: number;
@@ -56,8 +58,17 @@ export interface LeaderboardEntry {
 export interface ArenaMetrics {
   generatedSignals: number;
   committedSignals: number;
+  resolvedSignals: number;
   averageEdgeBps: number;
   totalBondedMicroUsdc: number;
+}
+
+export interface SignalResolutionDetails {
+  yesOutcome?: boolean;
+  source?: ResolutionSource;
+  settlementPrice?: number;
+  observedAt?: string;
+  onchainTxHash?: `0x${string}` | null;
 }
 
 export interface PersistenceStore {
@@ -66,8 +77,17 @@ export interface PersistenceStore {
   getArenaState(): Promise<ArenaState>;
   listSignals(): Promise<AgentSignal[]>;
   getSignal(signalId: string): Promise<AgentSignal | undefined>;
-  markSignalCommitted(signalId: string, txHash: `0x${string}`): Promise<AgentSignal>;
-  resolveSignal(signalId: string, outcomeCorrect: boolean, resolvedAt?: string): Promise<AgentSignal>;
+  markSignalCommitted(
+    signalId: string,
+    txHash: `0x${string}`,
+    signalRecordId?: number | null
+  ): Promise<AgentSignal>;
+  resolveSignal(
+    signalId: string,
+    outcomeCorrect: boolean,
+    resolvedAt?: string,
+    details?: SignalResolutionDetails
+  ): Promise<AgentSignal>;
   getLeaderboard(): Promise<LeaderboardEntry[]>;
   getMetrics(): Promise<ArenaMetrics>;
 }

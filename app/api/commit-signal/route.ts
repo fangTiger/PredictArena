@@ -38,11 +38,16 @@ export async function POST(request: Request) {
 
   try {
     const result = await commitSignalToArena(store, signal);
-    const committedSignal = await store.markSignalCommitted(signal.id, result.txHash);
+    const committedSignal = await store.markSignalCommitted(
+      signal.id,
+      result.txHash,
+      result.signalRecordId
+    );
 
     return NextResponse.json({
       signal: committedSignal,
-      txHash: result.txHash
+      txHash: result.txHash,
+      signalRecordId: result.signalRecordId
     });
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'commit_failed';

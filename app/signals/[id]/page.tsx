@@ -30,6 +30,7 @@ export default async function SignalDetailPage({
   const resolution = signal.resolution
     ? `${signal.resolution.outcomeCorrect ? 'Correct' : 'Incorrect'} at ${signal.resolution.resolvedAt}`
     : 'Pending';
+  const resolutionSource = signal.resolution?.source ?? 'pending';
 
   return (
     <PageShell>
@@ -173,6 +174,38 @@ export default async function SignalDetailPage({
             <div>
               <dt>Resolution</dt>
               <dd>{resolution}</dd>
+            </div>
+            <div>
+              <dt>Resolution Source</dt>
+              <dd>{resolutionSource}</dd>
+            </div>
+            <div>
+              <dt>YES Outcome</dt>
+              <dd>
+                {signal.resolution?.yesOutcome === undefined
+                  ? 'Pending'
+                  : signal.resolution.yesOutcome
+                    ? 'YES'
+                    : 'NO'}
+              </dd>
+            </div>
+            <div>
+              <dt>Settlement Price</dt>
+              <dd>
+                {signal.resolution?.settlementPrice === undefined
+                  ? 'Pending'
+                  : formatUsd(signal.resolution.settlementPrice)}
+              </dd>
+            </div>
+            <div>
+              <dt>Observed At</dt>
+              <dd>{signal.resolution?.observedAt ?? 'Pending'}</dd>
+            </div>
+            <div>
+              <dt>Onchain Resolve Tx</dt>
+              <dd>
+                <TxLink hash={signal.resolution?.onchainTxHash ?? null} />
+              </dd>
             </div>
             <div>
               <dt>Model Hash</dt>

@@ -60,6 +60,8 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await page.goto('/leaderboard');
   await expect(page.getByRole('heading', { name: 'Leaderboard' })).toBeVisible();
   await expect(page.getByRole('table')).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Resolved' })).toBeVisible();
+  await expect(page.getByRole('columnheader', { name: 'Accuracy' })).toBeVisible();
   await expect(page.locator('.page-hero')).toHaveCSS('border-radius', '8px');
   await expect(page.locator('.leaderboard-table-shell')).toBeVisible();
 });

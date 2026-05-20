@@ -1,0 +1,62 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="arenaArch" x1="214" y1="764" x2="805" y2="211" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2368F2"/>
+      <stop offset="0.5" stop-color="#00A979"/>
+      <stop offset="1" stop-color="#D84F61"/>
+    </linearGradient>
+    <linearGradient id="archDepth" x1="267" y1="740" x2="760" y2="286" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07398F"/>
+      <stop offset="0.52" stop-color="#075D77"/>
+      <stop offset="1" stop-color="#6C143D"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="308" y1="700" x2="731" y2="371" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#00A979"/>
+      <stop offset="0.58" stop-color="#00A979"/>
+      <stop offset="0.78" stop-color="#D84F61"/>
+      <stop offset="1" stop-color="#FFD166"/>
+    </linearGradient>
+    <linearGradient id="arenaRing" x1="235" y1="807" x2="799" y2="807" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2368F2"/>
+      <stop offset="0.5" stop-color="#0A45B8"/>
+      <stop offset="1" stop-color="#D84F61"/>
+    </linearGradient>
+    <filter id="softShadow" x="96" y="112" width="832" height="824" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="26" stdDeviation="24" flood-color="#071321" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <path
+      d="M216 788C272 690 251 494 315 371C374 257 455 194 512 165C569 194 650 257 709 371C773 494 752 690 808 788"
+      stroke="url(#arenaArch)"
+      stroke-width="122"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <path
+      d="M301 750C334 662 318 503 371 400C414 316 475 269 512 247C549 269 610 316 653 400C706 503 690 662 723 750"
+      stroke="url(#archDepth)"
+      stroke-width="64"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      opacity="0.78"
+    />
+    <path
+      d="M268 809C348 768 454 749 512 749C570 749 676 768 756 809"
+      stroke="url(#arenaRing)"
+      stroke-width="44"
+      stroke-linecap="round"
+    />
+    <path
+      d="M338 694C419 676 421 573 501 568C593 562 606 431 700 405"
+      stroke="url(#signal)"
+      stroke-width="52"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+    <circle cx="338" cy="694" r="42" fill="#00A979" stroke="white" stroke-width="22"/>
+    <circle cx="501" cy="568" r="36" fill="#00A979" stroke="white" stroke-width="18"/>
+    <circle cx="700" cy="405" r="42" fill="#FFD166" stroke="white" stroke-width="22"/>
+  </g>
+</svg>

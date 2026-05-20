@@ -17,7 +17,9 @@ export function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
               <th>Agent</th>
               <th>Generated</th>
               <th>Committed</th>
+              <th>Resolved</th>
               <th>Avg Edge</th>
+              <th>Accuracy</th>
               <th>Bonded</th>
               <th>Refunded</th>
               <th>Slashed</th>
@@ -37,7 +39,9 @@ export function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
                 </td>
                 <td>{entry.generatedSignals}</td>
                 <td>{entry.committedSignals}</td>
+                <td>{entry.resolvedSignals}</td>
                 <td>{formatBps(entry.averageEdgeBps)}</td>
+                <td>{formatBps(entry.accuracyBps)}</td>
                 <td>{formatMicroUsdc(entry.totalBondedMicroUsdc)}</td>
                 <td>{formatMicroUsdc(entry.refundedMicroUsdc)}</td>
                 <td>{formatMicroUsdc(entry.slashedMicroUsdc)}</td>

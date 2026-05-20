@@ -206,12 +206,13 @@ code {
   justify-content: center;
   width: 34px;
   height: 34px;
+  flex: 0 0 auto;
   border: 1px solid var(--line-strong);
   border-radius: 8px;
-  color: #ffffff;
-  background: linear-gradient(135deg, var(--arc-blue), var(--signal-mint));
-  font-size: 0.76rem;
-  letter-spacing: 0.06em;
+  background:
+    url('/predictarena-logo.svg') center / 86% 86% no-repeat,
+    linear-gradient(135deg, color-mix(in srgb, var(--arc-blue) 12%, transparent), var(--surface-strong));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.76) inset;
 }
 
 .topbar-actions {

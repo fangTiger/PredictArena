@@ -12,6 +12,7 @@ export type SignalStatus =
   | 'resolved_correct'
   | 'resolved_incorrect';
 export type ConfidenceLabel = 'LOW' | 'MEDIUM' | 'HIGH';
+export type ResolutionSource = 'automatic' | 'demo_admin';
 
 export interface RawPolymarketMarket {
   id: string;
@@ -89,11 +90,17 @@ export interface AgentSignal {
   stakeMicroUsdc: number;
   riskFlags: string[];
   arcTxHash: `0x${string}` | null;
+  arcSignalRecordId?: number | null;
   createdAt: string;
   updatedAt: string;
   source: MarketSource;
   resolution: null | {
     outcomeCorrect: boolean;
+    yesOutcome?: boolean;
     resolvedAt: string;
+    source?: ResolutionSource;
+    settlementPrice?: number;
+    observedAt?: string;
+    onchainTxHash?: `0x${string}` | null;
   };
 }

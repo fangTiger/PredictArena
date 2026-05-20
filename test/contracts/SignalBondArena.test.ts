@@ -144,4 +144,58 @@ describe('SignalBondArena', () => {
       'Ownable: caller is not the owner'
     );
   });
+
+  it('bulk resolves signals with owner-only gating and matching array lengths', async () => {
+    const { owner, volatilityAgent, outsider, treasury, usdc, arena } = await deployFixture();
+
+    await arena
+      .connect(volatilityAgent)
+      .commitSignal(
+        'bulk-correct',
+        'market-correct',
+        'volatility',
+        true,
+        5400,
+        7600,
+        7600,
+        2200,
+        25_000,
+        ethers.id('model-correct'),
+        ethers.id('data-correct')
+      );
+    await arena
+      .connect(volatilityAgent)
+      .commitSignal(
+        'bulk-wrong',
+        'market-wrong',
+        'volatility',
+        false,
+        4600,
+        7800,
+        7800,
+        3200,
+        25_000,
+        ethers.id('model-wrong'),
+        ethers.id('data-wrong')
+      );
+
+    await expect(arena.connect(outsider).resolveSignalsBulk([1, 2], [true, false])).to.be
+      .revertedWith('Ownable: caller is not the owner');
+    await expect(arena.connect(owner).resolveSignalsBulk([1, 2], [true])).to.be.revertedWith(
+      'length mismatch'
+    );
+
+    await expect(arena.connect(owner).resolveSignalsBulk([1, 2], [true, false]))
+      .to.emit(arena, 'SignalResolved')
+      .withArgs(1n, true, volatilityAgent.address, 25_000n)
+      .and.to.emit(arena, 'SignalResolved')
+      .withArgs(2n, false, treasury.address, 25_000n);
+
+    const resolvedCorrect = await arena.signals(1);
+    const resolvedWrong = await arena.signals(2);
+    expect(resolvedCorrect.resolved).to.equal(true);
+    expect(resolvedCorrect.outcomeCorrect).to.equal(true);
+    expect(resolvedWrong.resolved).to.equal(true);
+    expect(resolvedWrong.outcomeCorrect).to.equal(false);
+  });
 });

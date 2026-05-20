@@ -10,6 +10,10 @@ import type {
   MarketScanRecord,
   PersistenceStore
 } from '@/lib/persistence/store';
+import {
+  computeBrierScoreBps,
+  computePaperRoiBps
+} from '@/lib/resolution/scoring';
 
 interface PersistedState extends ArenaState {
   latestScan?: LatestScanState;
@@ -34,33 +38,16 @@ function average(values: number[]): number {
   return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
 }
 
-function computePaperRoiBps(signal: AgentSignal): number {
-  if (!signal.resolution) {
-    return 0;
+function yesOutcomeFromCorrectness(signal: AgentSignal, outcomeCorrect: boolean): boolean {
+  if (signal.side === 'YES') {
+    return outcomeCorrect;
   }
 
-  const marketPriceBps = signal.marketPriceBps;
-  return signal.resolution.outcomeCorrect ? 10_000 - marketPriceBps : -marketPriceBps;
-}
-
-function computeBrierScoreBps(signal: AgentSignal): number | null {
-  if (!signal.resolution) {
-    return null;
+  if (signal.side === 'NO') {
+    return !outcomeCorrect;
   }
 
-  const actualYes =
-    signal.side === 'YES'
-      ? signal.resolution.outcomeCorrect
-        ? 1
-        : 0
-      : signal.side === 'NO'
-        ? signal.resolution.outcomeCorrect
-          ? 0
-          : 1
-        : 0;
-
-  const pYes = signal.pYesBps / 10_000;
-  return Math.round(((pYes - actualYes) ** 2) * 10_000);
+  return false;
 }
 
 async function ensureParentDirectory(storagePath: string): Promise<void> {
@@ -129,7 +116,18 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
         const existingById = new Map(state.signals.map((signal) => [signal.id, signal]));
         for (const signal of record.signals) {
           const existing = existingById.get(signal.id);
-          existingById.set(signal.id, existing ? { ...signal, arcTxHash: existing.arcTxHash ?? signal.arcTxHash, resolution: existing.resolution ?? signal.resolution, status: existing.status === 'committed' ? existing.status : signal.status } : signal);
+          existingById.set(
+            signal.id,
+            existing
+              ? {
+                  ...signal,
+                  arcTxHash: existing.arcTxHash ?? signal.arcTxHash,
+                  arcSignalRecordId: existing.arcSignalRecordId ?? signal.arcSignalRecordId,
+                  resolution: existing.resolution ?? signal.resolution,
+                  status: existing.status === 'generated' ? signal.status : existing.status
+                }
+              : signal
+          );
         }
 
         state.signals = [...existingById.values()].sort((left, right) =>
@@ -157,7 +155,7 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
       return state.signals.find((signal) => signal.id === signalId);
     },
 
-    async markSignalCommitted(signalId: string, txHash: `0x${string}`) {
+    async markSignalCommitted(signalId: string, txHash: `0x${string}`, signalRecordId = null) {
       return mutate(async (state) => {
         const signal = state.signals.find((entry) => entry.id === signalId);
         if (!signal) {
@@ -165,22 +163,41 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
         }
 
         signal.arcTxHash = txHash;
+        signal.arcSignalRecordId = signalRecordId;
         signal.status = 'committed';
         signal.updatedAt = new Date().toISOString();
         return signal;
       });
     },
 
-    async resolveSignal(signalId: string, outcomeCorrect: boolean, resolvedAt = new Date().toISOString()) {
+    async resolveSignal(
+      signalId: string,
+      outcomeCorrect: boolean,
+      resolvedAt = new Date().toISOString(),
+      details = {}
+    ) {
       return mutate(async (state) => {
         const signal = state.signals.find((entry) => entry.id === signalId);
         if (!signal) {
           throw new Error(`unknown_signal:${signalId}`);
         }
 
+        if (signal.resolution) {
+          throw new Error('signal_already_resolved');
+        }
+
+        if (signal.status !== 'committed') {
+          throw new Error('signal_not_committed');
+        }
+
         signal.resolution = {
           outcomeCorrect,
-          resolvedAt
+          yesOutcome: details.yesOutcome ?? yesOutcomeFromCorrectness(signal, outcomeCorrect),
+          resolvedAt,
+          source: details.source,
+          settlementPrice: details.settlementPrice,
+          observedAt: details.observedAt,
+          onchainTxHash: details.onchainTxHash ?? null
         };
         signal.status = outcomeCorrect ? 'resolved_correct' : 'resolved_incorrect';
         signal.updatedAt = resolvedAt;
@@ -202,6 +219,7 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
         .map(([agentName, signals]): LeaderboardEntry => {
           const committedSignals = signals.filter((signal) => Boolean(signal.arcTxHash));
           const resolvedSignals = signals.filter((signal) => signal.resolution);
+          const correctSignals = resolvedSignals.filter((signal) => signal.resolution?.outcomeCorrect);
           const refundedMicroUsdc = resolvedSignals
             .filter((signal) => signal.resolution?.outcomeCorrect)
             .reduce((sum, signal) => sum + signal.stakeMicroUsdc, 0);
@@ -209,14 +227,24 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
             .filter((signal) => !signal.resolution?.outcomeCorrect)
             .reduce((sum, signal) => sum + signal.stakeMicroUsdc, 0);
           const brierScores = resolvedSignals
-            .map((signal) => computeBrierScoreBps(signal))
-            .filter((value): value is number => value !== null);
+            .map((signal) =>
+              computeBrierScoreBps(
+                signal,
+                signal.resolution?.yesOutcome ??
+                  yesOutcomeFromCorrectness(signal, Boolean(signal.resolution?.outcomeCorrect))
+              )
+            );
 
           return {
             rank: 0,
             agentName,
             generatedSignals: signals.length,
             committedSignals: committedSignals.length,
+            resolvedSignals: resolvedSignals.length,
+            accuracyBps:
+              resolvedSignals.length === 0
+                ? 0
+                : Math.round((correctSignals.length / resolvedSignals.length) * 10_000),
             averageEdgeBps: average(signals.map((signal) => signal.edgeBps)),
             totalBondedMicroUsdc: committedSignals.reduce(
               (sum, signal) => sum + signal.stakeMicroUsdc,
@@ -224,7 +252,11 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
             ),
             refundedMicroUsdc,
             slashedMicroUsdc,
-            paperRoiBps: average(resolvedSignals.map((signal) => computePaperRoiBps(signal))),
+            paperRoiBps: average(
+              resolvedSignals.map((signal) =>
+                computePaperRoiBps(signal, Boolean(signal.resolution?.outcomeCorrect))
+              )
+            ),
             brierScoreBps: brierScores.length === 0 ? null : average(brierScores),
             confidenceDistribution: {
               low: signals.filter((signal) => signal.confidence === 'LOW').length,
@@ -243,10 +275,12 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
     async getMetrics() {
       const state = await readState();
       const committedSignals = state.signals.filter((signal) => Boolean(signal.arcTxHash));
+      const resolvedSignals = state.signals.filter((signal) => signal.resolution);
 
       return {
         generatedSignals: state.signals.length,
         committedSignals: committedSignals.length,
+        resolvedSignals: resolvedSignals.length,
         averageEdgeBps: average(state.signals.map((signal) => signal.edgeBps)),
         totalBondedMicroUsdc: committedSignals.reduce(
           (sum, signal) => sum + signal.stakeMicroUsdc,

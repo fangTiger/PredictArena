@@ -5,7 +5,8 @@ import { getRuntimeStore } from '@/lib/persistence/store';
 
 const resolveBodySchema = z.object({
   signalId: z.string().min(1),
-  outcomeCorrect: z.boolean()
+  outcomeCorrect: z.boolean(),
+  yesOutcome: z.boolean().optional()
 });
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,18 @@ async function parseJson(request: Request): Promise<unknown> {
   }
 }
 
+function deriveYesOutcome(side: 'YES' | 'NO' | 'AVOID', outcomeCorrect: boolean): boolean {
+  if (side === 'YES') {
+    return outcomeCorrect;
+  }
+
+  if (side === 'NO') {
+    return !outcomeCorrect;
+  }
+
+  return false;
+}
+
 export async function POST(request: Request) {
   const env = getServerEnv();
   if (!env.admin.resolveToken) {
@@ -47,21 +60,35 @@ export async function POST(request: Request) {
   if (!parsedBody.success) {
     return invalidRequestResponse(parsedBody.error.issues);
   }
-  const body = parsedBody.data;
+
   const store = getRuntimeStore();
+  const signal = await store.getSignal(parsedBody.data.signalId);
+  if (!signal) {
+    return NextResponse.json({ reason: 'signal_not_found' }, { status: 404 });
+  }
+
+  const yesOutcome =
+    parsedBody.data.yesOutcome ?? deriveYesOutcome(signal.side, parsedBody.data.outcomeCorrect);
   const resolvedAt = new Date().toISOString();
-  let signal;
+  let resolvedSignal;
   try {
-    signal = await store.resolveSignal(body.signalId, body.outcomeCorrect, resolvedAt, {
-      source: 'demo_admin',
-      observedAt: resolvedAt
-    });
+    resolvedSignal = await store.resolveSignal(
+      parsedBody.data.signalId,
+      parsedBody.data.outcomeCorrect,
+      resolvedAt,
+      {
+        yesOutcome,
+        source: 'demo_admin',
+        observedAt: resolvedAt
+      }
+    );
   } catch (error) {
     const reason = error instanceof Error ? error.message : 'resolve_failed';
     return NextResponse.json({ reason }, { status: 409 });
   }
 
   return NextResponse.json({
-    signal
+    signal: resolvedSignal,
+    source: 'demo_admin'
   });
 }

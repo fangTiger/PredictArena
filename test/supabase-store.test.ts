@@ -94,6 +94,7 @@ describe('Supabase persistence store', () => {
     expect(metrics).toEqual({
       generatedSignals: 1,
       committedSignals: 1,
+      resolvedSignals: 0,
       averageEdgeBps: 2200,
       totalBondedMicroUsdc: 50000
     });
