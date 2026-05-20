@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Scan {
+  id                 String          @id @default(cuid())
+  source             String
+  fallbackReason     String?
+  liveMarketCount    Int
+  parsedMarketCount Int
+  skippedMarketCount Int
+  createdAt          DateTime        @default(now())
+  markets            Market[]
+  skips              SkippedMarket[]
+}
+
+model Market {
+  id                 String     @id
+  eventId            String
+  slug               String
+  question           String
+  asset              String
+  direction          String
+  thresholdCents     Int
+  expiryAt           DateTime
+  yesPriceBps        Int
+  noPriceBps         Int
+  liquidityScoreBps  Int
+  parseConfidenceBps Int
+  source             String
+  rawPayload         String
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+  scanId             String?
+  scan               Scan?      @relation(fields: [scanId], references: [id], onDelete: SetNull)
+  forecasts          Forecast[]
+  signals            Signal[]
+}
+
+model SkippedMarket {
+  id       String @id @default(cuid())
+  scanId   String
+  marketId String
+  reason   String
+  question String?
+  scan     Scan   @relation(fields: [scanId], references: [id], onDelete: Cascade)
+}
+
+model Forecast {
+  id             String   @id @default(cuid())
+  marketId       String
+  agent          String
+  probabilityBps Int
+  reasons        String
+  rawPayload     String?
+  createdAt      DateTime @default(now())
+  market         Market   @relation(fields: [marketId], references: [id], onDelete: Cascade)
+}
+
+model Signal {
+  id                  String      @id
+  marketId            String
+  decision            String
+  yesProbabilityBps   Int
+  noProbabilityBps    Int
+  confidenceBps       Int
+  edgeBps             Int
+  eligibleForCommit   Boolean
+  disabledReason      String?
+  bondAmountMicroUsdc Int
+  agentScoreBps       Int
+  reasons             String
+  committedTxHash     String?
+  commitmentStatus    String      @default("not_started")
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+  market              Market      @relation(fields: [marketId], references: [id], onDelete: Cascade)
+  commitment          Commitment?
+}
+
+model Commitment {
+  id                  String   @id @default(cuid())
+  signalId            String   @unique
+  txHash              String
+  chainId             Int
+  bondAmountMicroUsdc Int
+  committedAt         DateTime @default(now())
+  signal              Signal   @relation(fields: [signalId], references: [id], onDelete: Cascade)
+}
