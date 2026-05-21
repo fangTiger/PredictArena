@@ -1660,7 +1660,8 @@ code {
   gap: 6px;
 }
 
-.proof-form input {
+.proof-form input,
+.proof-form select {
   min-height: 44px;
   width: 100%;
   border: 1px solid var(--line-soft);
@@ -1668,6 +1669,31 @@ code {
   padding: 0.68rem 0.78rem;
   color: var(--ink);
   background: var(--surface-strong);
+}
+
+.proof-form select {
+  cursor: pointer;
+}
+
+.proof-form small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.proof-signal-summary,
+.proof-secret-state {
+  overflow-wrap: anywhere;
+}
+
+.proof-secret-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.proof-secret-row button {
+  padding-inline: 0.78rem;
 }
 
 .proof-wallet-grid {

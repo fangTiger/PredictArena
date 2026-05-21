@@ -232,6 +232,16 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByText(/bounded/i).first()).toBeVisible();
   await expect(page.getByLabel('Proof Secret')).toBeVisible();
   await expect(page.getByLabel('Signal ID')).toBeVisible();
+  await expect(page.getByLabel('Signal ID')).toHaveValue(/.+/);
+  await expect(page.getByText('Auto-selected eligible signal')).toBeVisible();
+  await page.evaluate(() => {
+    sessionStorage.setItem('predictarena:proof-secret', 'playwright-proof-secret');
+  });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await expect(page.getByLabel('Proof Secret')).toHaveValue('playwright-proof-secret');
+  await expect(page.getByText('Session unlocked')).toBeVisible();
+  await page.getByRole('button', { name: 'Forget' }).click();
+  await expect(page.getByLabel('Proof Secret')).toHaveValue('');
   await expect(page.locator('.proof-grid').first()).toHaveCSS('display', 'grid');
   await expect(page.locator('.page-hero')).toHaveCSS('border-radius', '8px');
 });
