@@ -91,11 +91,25 @@ type Language = 'en' | 'zh';
 type ThemeMode = 'light' | 'dark';
 type ScanSource = 'live' | 'demo_snapshot' | 'idle';
 
+const MARKET_PAGE_SIZE = 5;
+const SIGNAL_PAGE_SIZE = 5;
+
 interface ScanFeedback {
   changedCount: number;
   hash: string;
   scannedAt: string;
   source: ScanSource;
+}
+
+interface PaginationControlProps {
+  ariaLabel: string;
+  itemLabel: string;
+  nextText: string;
+  page: number;
+  pageSize: number;
+  previousText: string;
+  totalItems: number;
+  onPageChange: (page: number) => void;
 }
 
 const copy = {
@@ -139,7 +153,9 @@ const copy = {
     noRiskFlags: 'No risk flags in generated signals.',
     noSignal: 'Signals will appear here after you click Run Agents.',
     openSignal: 'Open Signal Detail',
+    nextPage: 'Next',
     parsedMarkets: 'Parsed Markets',
+    previousPage: 'Prev',
     predictionKicker: 'Arc Forecast Arena',
     probabilityRail: 'Probability Rail',
     proofPack: 'Proof Pack',
@@ -208,7 +224,9 @@ const copy = {
     noRiskFlags: '生成信号没有风险标记。',
     noSignal: '点击运行智能体后，信号会出现在这里。',
     openSignal: '打开信号详情',
+    nextPage: '下一页',
     parsedMarkets: '可解析市场',
+    previousPage: '上一页',
     predictionKicker: 'Arc 预测竞技场',
     probabilityRail: '概率轨道',
     proofPack: '证明包',
@@ -527,6 +545,67 @@ function queueStatusLabel(status: AutonomyQueueEntry['status']) {
   return labels[status];
 }
 
+function pageCount(totalItems: number, pageSize: number): number {
+  return Math.max(1, Math.ceil(totalItems / pageSize));
+}
+
+function clampPage(page: number, totalItems: number, pageSize: number): number {
+  return Math.min(Math.max(page, 1), pageCount(totalItems, pageSize));
+}
+
+function pageStart(page: number, pageSize: number): number {
+  return (page - 1) * pageSize;
+}
+
+function PaginationControl({
+  ariaLabel,
+  itemLabel,
+  nextText,
+  page,
+  pageSize,
+  previousText,
+  totalItems,
+  onPageChange
+}: PaginationControlProps) {
+  const totalPages = pageCount(totalItems, pageSize);
+  const currentPage = clampPage(page, totalItems, pageSize);
+  const firstItem = totalItems === 0 ? 0 : pageStart(currentPage, pageSize) + 1;
+  const lastItem = Math.min(totalItems, currentPage * pageSize);
+
+  if (totalItems <= pageSize) {
+    return null;
+  }
+
+  return (
+    <nav className="list-pagination" aria-label={`${ariaLabel} pages`}>
+      <span className="page-range">
+        {itemLabel} {firstItem}-{lastItem} of {totalItems}
+      </span>
+      <div className="page-actions">
+        <button
+          type="button"
+          aria-label={`Previous ${ariaLabel} page`}
+          onClick={() => onPageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+        >
+          {previousText}
+        </button>
+        <span aria-label={`${ariaLabel} page ${currentPage} of ${totalPages}`}>
+          {currentPage}/{totalPages}
+        </span>
+        <button
+          type="button"
+          aria-label={`Next ${ariaLabel} page`}
+          onClick={() => onPageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+        >
+          {nextText}
+        </button>
+      </div>
+    </nav>
+  );
+}
+
 export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardProps) {
   const [arena, setArena] = useState(initialState);
   const [metrics, setMetrics] = useState(initialMetrics);
@@ -538,6 +617,8 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
   });
   const [lastCommitResult, setLastCommitResult] = useState<CommitResult | null>(null);
   const [language, setLanguage] = useState<Language>('en');
+  const [marketPage, setMarketPage] = useState(1);
+  const [signalPage, setSignalPage] = useState(1);
   const [theme, setTheme] = useState<ThemeMode>('light');
   const [scanFeedback, setScanFeedback] = useState<ScanFeedback>(() => ({
     changedCount: initialState.markets.length,
@@ -580,6 +661,18 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     void refreshAutonomy();
   }, [refreshAutonomy]);
 
+  useEffect(() => {
+    setMarketPage((currentPage) =>
+      clampPage(currentPage, arena.markets.length, MARKET_PAGE_SIZE)
+    );
+  }, [arena.markets.length]);
+
+  useEffect(() => {
+    setSignalPage((currentPage) =>
+      clampPage(currentPage, arena.signals.length, SIGNAL_PAGE_SIZE)
+    );
+  }, [arena.signals.length]);
+
   async function refreshMarkets() {
     const response = await fetch('/api/markets', { headers: { accept: 'application/json' } });
     const payload = (await response.json()) as MarketsResponse;
@@ -604,6 +697,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
       },
       markets: payload.markets
     }));
+    setMarketPage(1);
   }
 
   async function runAgents() {
@@ -643,6 +737,8 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
       signals: payload.signals,
       autonomyRuns: arena.autonomyRuns
     });
+    setMarketPage(1);
+    setSignalPage(1);
     setMetrics(payload.metrics);
     await refreshAutonomy();
   }
@@ -739,6 +835,16 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     latestAutonomyRun?.queue && latestAutonomyRun.queue.length > 0
       ? latestAutonomyRun.queue.slice(0, 8)
       : buildDerivedQueue(arena.signals, lastCommitResult);
+  const currentMarketPage = clampPage(marketPage, arena.markets.length, MARKET_PAGE_SIZE);
+  const currentSignalPage = clampPage(signalPage, arena.signals.length, SIGNAL_PAGE_SIZE);
+  const pagedMarkets = arena.markets.slice(
+    pageStart(currentMarketPage, MARKET_PAGE_SIZE),
+    pageStart(currentMarketPage, MARKET_PAGE_SIZE) + MARKET_PAGE_SIZE
+  );
+  const pagedSignals = arena.signals.slice(
+    pageStart(currentSignalPage, SIGNAL_PAGE_SIZE),
+    pageStart(currentSignalPage, SIGNAL_PAGE_SIZE) + SIGNAL_PAGE_SIZE
+  );
 
   return (
     <main className="arena-shell" data-theme={theme}>
@@ -1079,8 +1185,21 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             </p>
           </div>
 
+          <PaginationControl
+            ariaLabel={t.marketScanRail}
+            itemLabel={language === 'zh' ? '市场' : 'Markets'}
+            nextText={t.nextPage}
+            page={currentMarketPage}
+            pageSize={MARKET_PAGE_SIZE}
+            previousText={t.previousPage}
+            totalItems={arena.markets.length}
+            onPageChange={(page) =>
+              setMarketPage(clampPage(page, arena.markets.length, MARKET_PAGE_SIZE))
+            }
+          />
+
           <div className="market-list">
-            {arena.markets.map((market) => (
+            {pagedMarkets.map((market) => (
               <section key={market.id} className="market-card">
                 <div className="market-card-header">
                   <p className="market-asset">{market.asset}</p>
@@ -1168,8 +1287,21 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             </div>
           </section>
 
+          <PaginationControl
+            ariaLabel={t.signalBoard}
+            itemLabel={language === 'zh' ? '信号' : 'Signals'}
+            nextText={t.nextPage}
+            page={currentSignalPage}
+            pageSize={SIGNAL_PAGE_SIZE}
+            previousText={t.previousPage}
+            totalItems={arena.signals.length}
+            onPageChange={(page) =>
+              setSignalPage(clampPage(page, arena.signals.length, SIGNAL_PAGE_SIZE))
+            }
+          />
+
           <div className="signal-list">
-            {arena.signals.map((signal) => {
+            {pagedSignals.map((signal) => {
               const disabledReason =
                 signal.side === 'AVOID'
                   ? language === 'zh'

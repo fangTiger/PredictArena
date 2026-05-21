@@ -148,6 +148,16 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByText('Policy Decision').first()).toBeVisible();
   await expect(page.getByText('Approve State').first()).toBeVisible();
   await expect(page.getByText('Failure / Tx').first()).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Market Scan Rail pages' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Signal Board pages' })).toBeVisible();
+  await expect(page.locator('.market-list .market-card')).toHaveCount(5);
+  await expect(page.locator('.signal-list .signal-card')).toHaveCount(5);
+  await page.getByRole('button', { name: 'Next Market Scan Rail page' }).click();
+  await expect(page.getByText('Markets 6-10 of')).toBeVisible();
+  await page.getByRole('button', { name: 'Previous Market Scan Rail page' }).click();
+  await page.getByRole('button', { name: 'Next Signal Board page' }).click();
+  await expect(page.getByText('Signals 6-10 of')).toBeVisible();
+  await page.getByRole('button', { name: 'Previous Signal Board page' }).click();
   await page.screenshot({ path: testInfo.outputPath('arena-stage2.png'), fullPage: true });
 
   const receiptLink = page.getByRole('link').filter({ hasText: /\d{2}:\d{2}/ }).first();

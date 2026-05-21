@@ -909,6 +909,47 @@ code {
   gap: 12px;
 }
 
+.list-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--muted);
+  background: color-mix(in srgb, var(--surface-muted) 80%, transparent);
+}
+
+.page-range {
+  color: var(--ink-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.page-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.page-actions button {
+  min-height: 36px;
+  padding: 0.48rem 0.68rem;
+  font-size: 0.82rem;
+}
+
+.page-actions span {
+  min-width: 3rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-align: center;
+}
+
 .market-card,
 .signal-card,
 .empty-card {
@@ -1885,6 +1926,19 @@ code {
 
   .leaderboard-metric {
     text-align: left;
+  }
+
+  .list-pagination {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-actions {
+    justify-content: space-between;
+  }
+
+  .page-actions button {
+    flex: 1 1 88px;
   }
 }
 
