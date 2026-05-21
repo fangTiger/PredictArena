@@ -1,6 +1,98 @@
 import { expect, test } from '@playwright/test';
+import { createLocalStore } from '../../lib/persistence/localStore';
+import type { AgentSignal } from '../../lib/polymarket/types';
 
 test.setTimeout(60_000);
+
+const PLAYWRIGHT_STORE_PATH = '/tmp/predictarena-playwright-store.json';
+const ARC_EXPLORER_URL = 'https://testnet.arcscan.app';
+
+function txHashFor(projectName: string, suffix: string): `0x${string}` {
+  const seed = Buffer.from(`${projectName}:${suffix}`).toString('hex').padEnd(64, '0').slice(0, 64);
+
+  return `0x${seed}`;
+}
+
+async function seedCommittedLifecycle(projectName: string): Promise<{
+  agentName: AgentSignal['agentName'];
+  commitTxHash: `0x${string}`;
+  resolveTxHash: `0x${string}`;
+  runId: string;
+  signalId: string;
+}> {
+  const store = createLocalStore({ storagePath: PLAYWRIGHT_STORE_PATH });
+  const state = await store.getArenaState();
+  const signal = state.signals.find((entry) => !entry.arcTxHash && entry.side !== 'AVOID');
+
+  if (!signal) {
+    throw new Error('No uncommitted non-AVOID signal available for lifecycle seeding.');
+  }
+
+  const now = new Date().toISOString();
+  const commitTxHash = txHashFor(projectName, 'commit');
+  const resolveTxHash = txHashFor(projectName, 'resolve');
+  const runId = `e2e-lifecycle:${projectName}:${Date.now()}`;
+  await store.markSignalCommitted(signal.id, commitTxHash, 9001);
+  await store.resolveSignal(signal.id, true, now, {
+    observedAt: now,
+    onchainTxHash: resolveTxHash,
+    source: 'demo_admin'
+  });
+  await store.saveAutonomousRun({
+    runId,
+    idempotencyKey: runId,
+    scheduleWindowId: runId,
+    status: 'completed',
+    source: state.latestScan?.source ?? 'demo_snapshot',
+    triggeredAt: now,
+    completedAt: now,
+    marketCount: state.markets.length,
+    generatedSignalCount: state.signals.length,
+    modeByAgent: {
+      momentum: 'LIVE',
+      volatility: 'LIVE'
+    },
+    queue: [
+      {
+        agentName: signal.agentName,
+        edgeBps: signal.edgeBps,
+        reason: null,
+        signalId: signal.id,
+        stakeMicroUsdc: signal.stakeMicroUsdc,
+        status: 'committed',
+        txHash: commitTxHash
+      }
+    ],
+    committedCount: 1,
+    dryRunCount: 0,
+    skippedCount: Math.max(state.signals.length - 1, 0),
+    budgetSnapshots: [
+      {
+        agentName: signal.agentName,
+        dailyBondUsedUsdc6: signal.stakeMicroUsdc,
+        mode: 'LIVE',
+        openSignals: 1,
+        policy: {
+          maxDailyBondUsdc6: 150_000,
+          maxOpenSignals: 3,
+          maxSignalsPerDay: 4,
+          maxStakePerSignalUsdc6: 50_000,
+          minEdgeBps: 900,
+          mode: 'LIVE'
+        },
+        signalsUsedToday: 1
+      }
+    ]
+  });
+
+  return {
+    agentName: signal.agentName,
+    commitTxHash,
+    resolveTxHash,
+    runId,
+    signalId: signal.id
+  };
+}
 
 test('arena, signal detail, and leaderboard load without manual inputs', async ({ page }, testInfo) => {
   await page.goto('/arena');
@@ -142,4 +234,59 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByLabel('Signal ID')).toBeVisible();
   await expect(page.locator('.proof-grid').first()).toHaveCSS('display', 'grid');
   await expect(page.locator('.page-hero')).toHaveCSS('border-radius', '8px');
+});
+
+test('agent lifecycle exposes Arc transaction links from commit to resolution', async ({
+  page
+}, testInfo) => {
+  await page.goto('/arena');
+  const runAgentsButton = page.getByRole('button', { name: 'Run Agents' });
+  await runAgentsButton.click();
+  await expect(runAgentsButton).toBeEnabled({ timeout: 30_000 });
+
+  const lifecycle = await seedCommittedLifecycle(testInfo.project.name);
+  const commitTxUrl = `${ARC_EXPLORER_URL}/tx/${lifecycle.commitTxHash}`;
+  const resolveTxUrl = `${ARC_EXPLORER_URL}/tx/${lifecycle.resolveTxHash}`;
+
+  await page.goto('/arena', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Commit Queue' })).toBeVisible();
+  await expect(page.getByText(lifecycle.signalId).first()).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', commitTxUrl);
+
+  await page.goto(`/autonomy/runs/${encodeURIComponent(lifecycle.runId)}`, {
+    waitUntil: 'domcontentloaded'
+  });
+  await expect(page.getByRole('heading', { name: 'Run Receipt' })).toBeVisible();
+  await expect(page.getByText('approved + committed').or(page.getByText('committed')).first()).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', commitTxUrl);
+
+  await page.goto(`/signals/${encodeURIComponent(lifecycle.signalId)}`, {
+    waitUntil: 'domcontentloaded'
+  });
+  await expect(page.getByRole('heading', { name: 'Decision Trace' })).toBeVisible();
+  await expect(page.getByText('Resolution', { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', commitTxUrl);
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.resolveTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', resolveTxUrl);
+
+  await page.goto(`/agents/${lifecycle.agentName}`, { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('Agent Reputation Profile')).toBeVisible();
+  await expect(page.getByText('Resolved', { exact: true }).first()).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', commitTxUrl);
+
+  await page.goto('/proof', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Proof Pack', level: 1 })).toBeVisible();
+  await expect(page.getByText('Latest Tx').first()).toBeVisible();
+  await expect(
+    page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()
+  ).toHaveAttribute('href', commitTxUrl);
 });

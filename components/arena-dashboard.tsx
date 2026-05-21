@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useTransition } from 'react';
-import { buildArcTxUrl } from '@/lib/arc/explorer';
+import { TxLink } from '@/components/TxLink';
 import type { AgentSignal, ParsedCryptoMarket } from '@/lib/polymarket/types';
 import type {
   ArenaMetrics,
@@ -1153,9 +1153,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                   <span>{entry.status === 'committed' ? 'approved + committed' : entry.status === 'dry_run_eligible' ? 'dry-run only' : 'not attempted'}</span>
                   <span>
                     {entry.txHash ? (
-                      <a href={buildArcTxUrl(entry.txHash)} target="_blank" rel="noreferrer">
-                        {truncateHash(entry.txHash)}
-                      </a>
+                      <TxLink hash={entry.txHash} />
                     ) : (
                       entry.reason ?? `${formatPercent(entry.edgeBps)} edge / ${formatUsdMicro(entry.stakeMicroUsdc)}`
                     )}
@@ -1276,9 +1274,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                       {t.openSignal}
                     </Link>
                     {signal.arcTxHash ? (
-                      <a href={buildArcTxUrl(signal.arcTxHash)} target="_blank" rel="noreferrer">
-                        {truncateHash(signal.arcTxHash)}
-                      </a>
+                      <TxLink hash={signal.arcTxHash} />
                     ) : disabledReason ? (
                       <span className="muted">{disabledReason}</span>
                     ) : (
