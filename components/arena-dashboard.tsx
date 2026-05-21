@@ -1,10 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState, useTransition } from 'react';
+import { useCallback, useEffect, useState, useTransition } from 'react';
 import { buildArcTxUrl } from '@/lib/arc/explorer';
 import type { AgentSignal, ParsedCryptoMarket } from '@/lib/polymarket/types';
-import type { ArenaMetrics, ArenaState } from '@/lib/persistence/store';
+import type {
+  ArenaMetrics,
+  ArenaState,
+  AutonomousRunRecord,
+  AutonomyQueueEntry
+} from '@/lib/persistence/store';
 import { isSignalEligibleForCommit } from '@/lib/utils/signal';
 
 interface ArenaDashboardProps {
@@ -27,6 +32,47 @@ interface CommitResponse {
   reason?: string;
   signal?: AgentSignal;
   txHash?: `0x${string}`;
+}
+
+interface AgentPolicyView {
+  mode: 'OFF' | 'DRY_RUN' | 'LIVE';
+  maxDailyBondUsdc6: number;
+  maxSignalsPerDay: number;
+  maxStakePerSignalUsdc6: number;
+  maxOpenSignals: number;
+  minEdgeBps: number;
+}
+
+interface ArcWalletReadinessView {
+  publicAddress: `0x${string}` | null;
+  usdcBalanceMicroUsdc: string | null;
+  allowanceMicroUsdc: string | null;
+}
+
+interface ArcControlRoomView {
+  status: 'ready' | 'degraded';
+  reason: string | null;
+  chainId: number;
+  arenaAddress: `0x${string}` | null;
+  usdcAddress: `0x${string}`;
+  usdcDecimals: number;
+  commitAvailable: boolean;
+  latestTxHash: `0x${string}` | null;
+  wallets: Record<'volatility' | 'momentum', ArcWalletReadinessView>;
+}
+
+interface AutonomyResponse {
+  policies: Record<'volatility' | 'momentum', AgentPolicyView>;
+  metrics: ArenaMetrics;
+  runs: AutonomousRunRecord[];
+  controlRoom: ArcControlRoomView;
+}
+
+interface AutonomyViewState {
+  policies: Record<'volatility' | 'momentum', AgentPolicyView> | null;
+  runs: AutonomousRunRecord[];
+  controlRoom: ArcControlRoomView | null;
+  error: string | null;
 }
 
 type CommitResult =
@@ -96,6 +142,7 @@ const copy = {
     parsedMarkets: 'Parsed Markets',
     predictionKicker: 'Arc Forecast Arena',
     probabilityRail: 'Probability Rail',
+    proofPack: 'Proof Pack',
     reScan: 'Re-Scan Markets',
     riskDiagnostics: 'Risk Diagnostics',
     riskFlags: 'Risk Flags',
@@ -164,6 +211,7 @@ const copy = {
     parsedMarkets: '可解析市场',
     predictionKicker: 'Arc 预测竞技场',
     probabilityRail: '概率轨道',
+    proofPack: '证明包',
     reScan: '重新扫描市场',
     riskDiagnostics: '风险诊断',
     riskFlags: '风险标记',
@@ -298,8 +346,29 @@ function formatUsdMicro(micro: number) {
   return `$${(micro / 1_000_000).toFixed(2)}`;
 }
 
+function formatUsdMicroValue(micro: number | string | null | undefined) {
+  if (micro === null || micro === undefined) {
+    return 'Unavailable';
+  }
+
+  const numeric = typeof micro === 'string' ? Number(micro) : micro;
+  if (!Number.isFinite(numeric)) {
+    return 'Unavailable';
+  }
+
+  return formatUsdMicro(numeric);
+}
+
 function truncateHash(hash: string) {
   return `${hash.slice(0, 10)}...${hash.slice(-8)}`;
+}
+
+function truncateAddress(address: string | null | undefined) {
+  if (!address) {
+    return 'Not configured';
+  }
+
+  return `${address.slice(0, 8)}...${address.slice(-6)}`;
 }
 
 function formatTimestampLabel(value?: string) {
@@ -423,9 +492,50 @@ function findAssetMarket(markets: ParsedCryptoMarket[], asset: ParsedCryptoMarke
   return markets.find((market) => market.asset === asset);
 }
 
+function buildDerivedQueue(signals: AgentSignal[], lastCommitResult: CommitResult | null): AutonomyQueueEntry[] {
+  return signals.slice(0, 8).map((signal) => {
+    const committed = Boolean(signal.arcTxHash);
+    const eligible = isSignalEligibleForCommit(signal);
+    const failed =
+      lastCommitResult?.status === 'disabled' && lastCommitResult.signalId === signal.id
+        ? lastCommitResult.reason
+        : null;
+
+    return {
+      signalId: signal.id,
+      agentName: signal.agentName,
+      status: committed ? 'committed' : failed ? 'commit_failed' : eligible ? 'dry_run_eligible' : 'not_eligible',
+      reason: failed ?? (eligible ? null : signal.side === 'AVOID' ? 'signal_side_avoid' : 'below_policy_threshold'),
+      txHash: signal.arcTxHash,
+      edgeBps: signal.edgeBps,
+      stakeMicroUsdc: signal.stakeMicroUsdc
+    };
+  });
+}
+
+function queueStatusLabel(status: AutonomyQueueEntry['status']) {
+  const labels: Record<AutonomyQueueEntry['status'], string> = {
+    not_eligible: 'Not eligible',
+    mode_off: 'Mode off',
+    policy_blocked: 'Policy blocked',
+    claim_blocked: 'Claim blocked',
+    dry_run_eligible: 'Dry-run eligible',
+    committed: 'Committed',
+    commit_failed: 'Commit failed'
+  };
+
+  return labels[status];
+}
+
 export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardProps) {
   const [arena, setArena] = useState(initialState);
   const [metrics, setMetrics] = useState(initialMetrics);
+  const [autonomy, setAutonomy] = useState<AutonomyViewState>({
+    policies: null,
+    runs: initialState.autonomyRuns ?? [],
+    controlRoom: null,
+    error: null
+  });
   const [lastCommitResult, setLastCommitResult] = useState<CommitResult | null>(null);
   const [language, setLanguage] = useState<Language>('en');
   const [theme, setTheme] = useState<ThemeMode>('light');
@@ -442,6 +552,33 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     document.documentElement.dataset.theme = theme;
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
   }, [language, theme]);
+
+  const refreshAutonomy = useCallback(async () => {
+    try {
+      const response = await fetch('/api/autonomy', { headers: { accept: 'application/json' } });
+      const payload = (await response.json()) as AutonomyResponse;
+      if (!response.ok) {
+        throw new Error('Autonomy state unavailable.');
+      }
+
+      setAutonomy({
+        policies: payload.policies,
+        runs: payload.runs ?? [],
+        controlRoom: payload.controlRoom,
+        error: null
+      });
+      setMetrics(payload.metrics);
+    } catch (error) {
+      setAutonomy((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : 'Autonomy state unavailable.'
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshAutonomy();
+  }, [refreshAutonomy]);
 
   async function refreshMarkets() {
     const response = await fetch('/api/markets', { headers: { accept: 'application/json' } });
@@ -503,9 +640,11 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
         source: payload.source
       },
       markets: payload.markets,
-      signals: payload.signals
+      signals: payload.signals,
+      autonomyRuns: arena.autonomyRuns
     });
     setMetrics(payload.metrics);
+    await refreshAutonomy();
   }
 
   async function commitSignal(signal: AgentSignal) {
@@ -545,6 +684,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
       status: 'committed',
       txHash: payload.txHash
     });
+    await refreshAutonomy();
   }
 
   async function commitEligibleSignals() {
@@ -594,6 +734,11 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
   const btcMarket = findAssetMarket(arena.markets, 'BTC');
   const ethMarket = findAssetMarket(arena.markets, 'ETH');
   const solMarket = findAssetMarket(arena.markets, 'SOL');
+  const latestAutonomyRun = autonomy.runs[0];
+  const queueRows =
+    latestAutonomyRun?.queue && latestAutonomyRun.queue.length > 0
+      ? latestAutonomyRun.queue.slice(0, 8)
+      : buildDerivedQueue(arena.signals, lastCommitResult);
 
   return (
     <main className="arena-shell" data-theme={theme}>
@@ -606,6 +751,10 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
           <Link href="/leaderboard" className="icon-link">
             <Icon name="chart" />
             {t.leaderboard}
+          </Link>
+          <Link href="/proof" className="icon-link">
+            <Icon name="wallet" />
+            {t.proofPack}
           </Link>
           <button
             type="button"
@@ -719,6 +868,144 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             <small>{metrics.committedSignals} committed</small>
           </article>
         </div>
+      </section>
+
+      <section className="ops-grid">
+        <article className="panel autonomy-panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-kicker">Scheduled Agents</p>
+              <h2>Autonomy Panel</h2>
+            </div>
+            <span className="panel-value">{autonomy.runs.length}</span>
+          </div>
+
+          {autonomy.error ? <p className="muted">{autonomy.error}</p> : null}
+
+          <div className="autonomy-sections">
+            <section>
+              <h3>Mode by Agent</h3>
+              <div className="policy-grid">
+                {(['volatility', 'momentum'] as const).map((agentName) => {
+                  const policy = autonomy.policies?.[agentName];
+                  return (
+                    <article key={agentName} className="policy-card">
+                      <span className={`status-chip ${policy?.mode === 'LIVE' ? 'status-ready' : policy?.mode === 'OFF' ? 'status-risk' : 'status-amber'}`}>
+                        {policy?.mode ?? 'LOADING'}
+                      </span>
+                      <strong>{agentDisplayName(agentName)}</strong>
+                      <small>Min edge {policy ? formatPercent(policy.minEdgeBps) : 'pending'}</small>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section>
+              <h3>Budget Utilization</h3>
+              <div className="budget-grid">
+                {(latestAutonomyRun?.budgetSnapshots ?? []).map((snapshot) => (
+                  <article key={snapshot.agentName} className="budget-card">
+                    <span>{agentDisplayName(snapshot.agentName)}</span>
+                    <strong>
+                      {formatUsdMicro(snapshot.dailyBondUsedUsdc6)} / {formatUsdMicro(snapshot.policy.maxDailyBondUsdc6)}
+                    </strong>
+                    <small>
+                      {snapshot.signalsUsedToday}/{snapshot.policy.maxSignalsPerDay} daily signals, {snapshot.openSignals}/{snapshot.policy.maxOpenSignals} open
+                    </small>
+                  </article>
+                ))}
+                {!latestAutonomyRun?.budgetSnapshots?.length ? (
+                  <article className="budget-card">
+                    <span>Budget Pending</span>
+                    <strong>No autonomous run yet</strong>
+                    <small>Dry-run history will populate this panel after cron executes.</small>
+                  </article>
+                ) : null}
+              </div>
+            </section>
+
+            <section>
+              <h3>Recent Autonomous Runs</h3>
+              <ul className="run-history-list">
+                {autonomy.runs.slice(0, 4).map((run) => (
+                  <li key={run.runId}>
+                    <div>
+                      <Link href={`/autonomy/runs/${encodeURIComponent(run.runId)}`}>
+                        <strong>{formatTimestampLabel(run.triggeredAt)}</strong>
+                      </Link>
+                      <span>{run.source} · {run.generatedSignalCount} generated</span>
+                    </div>
+                    <div className="leaderboard-metric">
+                      <strong>{run.committedCount ?? 0} live / {run.dryRunCount ?? 0} dry</strong>
+                      <span>{run.skippedCount ?? 0} skipped</span>
+                    </div>
+                  </li>
+                ))}
+                {autonomy.runs.length === 0 ? (
+                  <li className="plain-list-item">No scheduled run has been recorded yet.</li>
+                ) : null}
+              </ul>
+            </section>
+          </div>
+        </article>
+
+        <article className="panel control-room-panel">
+          <div className="panel-header">
+            <div>
+              <p className="panel-kicker">Arc Readiness</p>
+              <h2>Agent Control Room</h2>
+            </div>
+            <span className={`status-chip ${autonomy.controlRoom?.commitAvailable ? 'status-ready' : 'status-risk'}`}>
+              {autonomy.controlRoom?.status ?? 'loading'}
+            </span>
+          </div>
+
+          <div className="control-room-grid">
+            <article>
+              <span>Commit Availability</span>
+              <strong>{autonomy.controlRoom?.commitAvailable ? 'Available' : 'Guarded'}</strong>
+              <small>{autonomy.controlRoom?.reason ?? 'Ready for Arc signal bonds'}</small>
+            </article>
+            <article>
+              <span>Contract</span>
+              <strong>{truncateAddress(autonomy.controlRoom?.arenaAddress)}</strong>
+              <small>Arc chain {autonomy.controlRoom?.chainId ?? 'pending'}</small>
+            </article>
+            <article>
+              <span>Latest Arc Tx</span>
+              <strong>
+                {autonomy.controlRoom?.latestTxHash ? truncateHash(autonomy.controlRoom.latestTxHash) : 'Pending'}
+              </strong>
+              <small>{autonomy.controlRoom?.usdcDecimals ?? 6} USDC decimals</small>
+            </article>
+          </div>
+
+          <section>
+            <h3>Wallet Readiness</h3>
+            <div className="wallet-readiness-list">
+              {(['volatility', 'momentum'] as const).map((agentName) => {
+                const wallet = autonomy.controlRoom?.wallets[agentName];
+                return (
+                  <article key={agentName}>
+                    <div>
+                      <strong>{agentDisplayName(agentName)}</strong>
+                      <span>{truncateAddress(wallet?.publicAddress)}</span>
+                    </div>
+                    <div>
+                      <span>USDC balance</span>
+                      <strong>{formatUsdMicroValue(wallet?.usdcBalanceMicroUsdc)}</strong>
+                    </div>
+                    <div>
+                      <span>Allowance</span>
+                      <strong>{formatUsdMicroValue(wallet?.allowanceMicroUsdc)}</strong>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </article>
       </section>
 
       <section className="war-room-grid">
@@ -846,6 +1133,42 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             <span>{t.edge}</span>
             <span>{t.arcLane}</span>
           </div>
+
+          <section className="commit-queue-panel">
+            <div className="subpanel-header">
+              <p className="panel-kicker">Batch Commit</p>
+              <h2>Commit Queue</h2>
+            </div>
+            <div className="queue-header">
+              <span>Signal</span>
+              <span>Policy Decision</span>
+              <span>Approve State</span>
+              <span>Failure / Tx</span>
+            </div>
+            <div className="queue-list">
+              {queueRows.map((entry) => (
+                <article key={`${entry.signalId}-${entry.status}`} className="queue-row">
+                  <code>{entry.signalId}</code>
+                  <span>{queueStatusLabel(entry.status)}</span>
+                  <span>{entry.status === 'committed' ? 'approved + committed' : entry.status === 'dry_run_eligible' ? 'dry-run only' : 'not attempted'}</span>
+                  <span>
+                    {entry.txHash ? (
+                      <a href={buildArcTxUrl(entry.txHash)} target="_blank" rel="noreferrer">
+                        {truncateHash(entry.txHash)}
+                      </a>
+                    ) : (
+                      entry.reason ?? `${formatPercent(entry.edgeBps)} edge / ${formatUsdMicro(entry.stakeMicroUsdc)}`
+                    )}
+                  </span>
+                </article>
+              ))}
+              {queueRows.length === 0 ? (
+                <article className="queue-row queue-row-empty">
+                  <span>No queue rows yet. Run agents or cron to populate policy decisions.</span>
+                </article>
+              ) : null}
+            </div>
+          </section>
 
           <div className="signal-list">
             {arena.signals.map((signal) => {

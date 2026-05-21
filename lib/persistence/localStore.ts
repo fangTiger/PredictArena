@@ -1,19 +1,29 @@
+import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import type { AgentSignal } from '@/lib/polymarket/types';
 import type {
+  AcquireAutonomousRunInput,
+  AcquireAutonomousRunResult,
+  AcquireCommitClaimInput,
+  AcquireCommitClaimResult,
+  AcquireOperationLockInput,
+  AcquireOperationLockResult,
   AgentRunRecord,
   ArenaMetrics,
   ArenaState,
+  AutonomousFailureRecord,
   LatestScanState,
   LeaderboardEntry,
   MarketScanRecord,
+  OperationLockRecord,
+  AutonomousRunRecord,
+  CommitClaimRecord,
+  UpdateCommitClaimInput,
   PersistenceStore
 } from '@/lib/persistence/store';
-import {
-  computeBrierScoreBps,
-  computePaperRoiBps
-} from '@/lib/resolution/scoring';
+import { createEmptyOperationsState } from '@/lib/persistence/store';
+import { computeBrierScoreBps, computePaperRoiBps } from '@/lib/resolution/scoring';
 
 interface PersistedState extends ArenaState {
   latestScan?: LatestScanState;
@@ -26,8 +36,35 @@ interface LocalStoreOptions {
 function emptyState(): PersistedState {
   return {
     markets: [],
-    signals: []
+    signals: [],
+    autonomyRuns: [],
+    ops: createEmptyOperationsState()
   };
+}
+
+function normalizeState(state: Partial<PersistedState> | null | undefined): PersistedState {
+  const next = {
+    ...emptyState(),
+    ...state
+  } satisfies PersistedState;
+
+  next.ops = {
+    ...createEmptyOperationsState(),
+    ...state?.ops,
+    autonomous: {
+      ...createEmptyOperationsState().autonomous,
+      ...state?.ops?.autonomous,
+      claims: [...(state?.ops?.autonomous?.claims ?? [])],
+      lastFailure: state?.ops?.autonomous?.lastFailure ?? null
+    },
+    proof: {
+      ...createEmptyOperationsState().proof,
+      ...state?.ops?.proof,
+      claims: [...(state?.ops?.proof?.claims ?? [])]
+    }
+  };
+
+  return next;
 }
 
 function average(values: number[]): number {
@@ -61,11 +98,7 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
   async function readState(): Promise<PersistedState> {
     try {
       const content = await fs.readFile(options.storagePath, 'utf8');
-      const parsed = JSON.parse(content) as PersistedState;
-      memoryState = {
-        ...emptyState(),
-        ...parsed
-      };
+      memoryState = normalizeState(JSON.parse(content) as PersistedState);
       return memoryState;
     } catch {
       return memoryState;
@@ -96,6 +129,57 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
     );
 
     return next;
+  }
+
+  function replaceState(target: PersistedState, nextState: PersistedState): void {
+    for (const key of Object.keys(target) as Array<keyof PersistedState>) {
+      delete target[key];
+    }
+
+    Object.assign(target, nextState);
+  }
+
+  function upsertAutonomousRun(
+    state: PersistedState,
+    record: AutonomousRunRecord
+  ): AutonomousRunRecord {
+    const existingById = new Map(state.autonomyRuns.map((run) => [run.runId, run] as const));
+    const existing = existingById.get(record.runId);
+    const merged: AutonomousRunRecord = {
+      ...existing,
+      ...record,
+      idempotencyKey: record.idempotencyKey ?? existing?.idempotencyKey ?? null,
+      scheduleWindowId: record.scheduleWindowId ?? existing?.scheduleWindowId ?? null,
+      status: record.status ?? existing?.status ?? 'completed',
+      failureReasonCode: record.failureReasonCode ?? existing?.failureReasonCode ?? null,
+      lockExpiresAt: record.lockExpiresAt ?? existing?.lockExpiresAt ?? null
+    };
+
+    existingById.set(record.runId, merged);
+    state.autonomyRuns = [...existingById.values()].sort((left, right) =>
+      right.triggeredAt.localeCompare(left.triggeredAt)
+    );
+
+    return merged;
+  }
+
+  function activeLockFor(
+    lock: OperationLockRecord | null,
+    now: string
+  ): OperationLockRecord | null {
+    if (!lock) {
+      return null;
+    }
+
+    return new Date(lock.expiresAt).getTime() > new Date(now).getTime() ? lock : null;
+  }
+
+  function claimListFor(state: PersistedState, scope: 'autonomy' | 'proof'): CommitClaimRecord[] {
+    return scope === 'autonomy' ? state.ops!.autonomous.claims : state.ops!.proof.claims;
+  }
+
+  function sortClaims(claims: CommitClaimRecord[]): CommitClaimRecord[] {
+    return [...claims].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
   }
 
   return {
@@ -141,8 +225,30 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
       });
     },
 
+    async saveAutonomousRun(record: AutonomousRunRecord) {
+      await mutate(async (state) => {
+        upsertAutonomousRun(state, {
+          ...record,
+          status: record.status ?? 'completed'
+        });
+        if (state.ops?.autonomous.lock?.runId === record.runId) {
+          state.ops.autonomous.lock = null;
+        }
+      });
+    },
+
+    async replaceArenaState(nextState: ArenaState) {
+      await mutate(async (state) => {
+        replaceState(state, normalizeState(nextState));
+      });
+    },
+
     async getArenaState() {
       return readState();
+    },
+
+    async getOperationsState() {
+      return (await readState()).ops ?? createEmptyOperationsState();
     },
 
     async listSignals() {
@@ -202,6 +308,203 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
         signal.status = outcomeCorrect ? 'resolved_correct' : 'resolved_incorrect';
         signal.updatedAt = resolvedAt;
         return signal;
+      });
+    },
+
+    async acquireAutonomousRun(input: AcquireAutonomousRunInput): Promise<AcquireAutonomousRunResult> {
+      return mutate(async (state) => {
+        const duplicateByKey = state.autonomyRuns.find(
+          (run) => run.idempotencyKey && run.idempotencyKey === input.idempotencyKey
+        );
+        if (duplicateByKey) {
+          return {
+            status: 'duplicate',
+            duplicateBy: 'idempotency_key',
+            run: duplicateByKey
+          } satisfies AcquireAutonomousRunResult;
+        }
+
+        const duplicateByWindow = state.autonomyRuns.find(
+          (run) => run.scheduleWindowId && run.scheduleWindowId === input.scheduleWindowId
+        );
+        if (duplicateByWindow) {
+          return {
+            status: 'duplicate',
+            duplicateBy: 'schedule_window',
+            run: duplicateByWindow
+          } satisfies AcquireAutonomousRunResult;
+        }
+
+        const activeLock = activeLockFor(state.ops?.autonomous.lock ?? null, input.triggeredAt);
+        if (activeLock) {
+          return {
+            status: 'locked',
+            lock: activeLock
+          } satisfies AcquireAutonomousRunResult;
+        }
+
+        const lockExpiresAt = new Date(
+          new Date(input.triggeredAt).getTime() + input.lockTtlMs
+        ).toISOString();
+        const run = upsertAutonomousRun(state, {
+          runId: input.runId,
+          idempotencyKey: input.idempotencyKey,
+          scheduleWindowId: input.scheduleWindowId,
+          status: 'started',
+          source: input.source,
+          triggeredAt: input.triggeredAt,
+          completedAt: input.triggeredAt,
+          marketCount: 0,
+          generatedSignalCount: 0,
+          modeByAgent: {
+            volatility: 'OFF',
+            momentum: 'OFF'
+          },
+          queue: [],
+          committedCount: 0,
+          dryRunCount: 0,
+          skippedCount: 0,
+          budgetSnapshots: [],
+          failureReasonCode: null,
+          lockExpiresAt
+        });
+        state.ops!.autonomous.lock = {
+          scope: 'autonomy',
+          token: randomUUID(),
+          key: input.idempotencyKey,
+          owner: input.owner ?? null,
+          runId: input.runId,
+          acquiredAt: input.triggeredAt,
+          expiresAt: lockExpiresAt
+        };
+
+        return {
+          status: 'acquired',
+          run
+        } satisfies AcquireAutonomousRunResult;
+      });
+    },
+
+    async finalizeAutonomousRun(
+      record: AutonomousRunRecord,
+      options: { rawDiagnostic?: string | null } = {}
+    ) {
+      return mutate(async (state) => {
+        const nextRecord = upsertAutonomousRun(state, {
+          ...record,
+          status: record.status ?? 'completed'
+        });
+
+        if (state.ops?.autonomous.lock?.runId === record.runId) {
+          state.ops.autonomous.lock = null;
+        }
+
+        if (nextRecord.status === 'failed' || nextRecord.failureReasonCode) {
+          state.ops!.autonomous.lastFailure = {
+            runId: nextRecord.runId,
+            reasonCode: nextRecord.failureReasonCode ?? 'autonomous_run_failed',
+            rawDiagnostic: options.rawDiagnostic ?? null,
+            occurredAt: nextRecord.completedAt
+          } satisfies AutonomousFailureRecord;
+        }
+
+        return nextRecord;
+      });
+    },
+
+    async acquireCommitClaim(input: AcquireCommitClaimInput): Promise<AcquireCommitClaimResult> {
+      return mutate(async (state) => {
+        const claims = claimListFor(state, input.scope);
+        const existing = claims.find((claim) => claim.claimKey === input.claimKey);
+        if (existing) {
+          return {
+            status: 'existing',
+            claim: existing
+          } satisfies AcquireCommitClaimResult;
+        }
+
+        const claim: CommitClaimRecord = {
+          scope: input.scope,
+          claimKey: input.claimKey,
+          signalId: input.signalId,
+          agentName: input.agentName,
+          stakeMicroUsdc: input.stakeMicroUsdc,
+          chainId: input.chainId,
+          arenaAddress: input.arenaAddress,
+          runId: input.runId ?? null,
+          status: 'pending',
+          reasonCode: null,
+          txHash: null,
+          createdAt: input.createdAt,
+          updatedAt: input.createdAt
+        };
+        if (input.scope === 'autonomy') {
+          state.ops!.autonomous.claims = sortClaims([...claims, claim]);
+        } else {
+          state.ops!.proof.claims = sortClaims([...claims, claim]);
+        }
+
+        return {
+          status: 'acquired',
+          claim
+        } satisfies AcquireCommitClaimResult;
+      });
+    },
+
+    async updateCommitClaim(input: UpdateCommitClaimInput) {
+      return mutate(async (state) => {
+        const claims = claimListFor(state, input.scope);
+        const claim = claims.find((entry) => entry.claimKey === input.claimKey);
+        if (!claim) {
+          throw new Error(`unknown_commit_claim:${input.scope}:${input.claimKey}`);
+        }
+
+        claim.status = input.status;
+        claim.updatedAt = input.updatedAt;
+        claim.reasonCode = input.reasonCode ?? null;
+        claim.txHash = input.txHash === undefined ? claim.txHash : input.txHash;
+        if (input.scope === 'autonomy') {
+          state.ops!.autonomous.claims = sortClaims(claims);
+        } else {
+          state.ops!.proof.claims = sortClaims(claims);
+        }
+
+        return claim;
+      });
+    },
+
+    async acquireOperationLock(input: AcquireOperationLockInput): Promise<AcquireOperationLockResult> {
+      return mutate(async (state) => {
+        const activeLock = activeLockFor(state.ops?.proof.lock ?? null, input.acquiredAt);
+        if (activeLock) {
+          return {
+            status: 'locked',
+            lock: activeLock
+          } satisfies AcquireOperationLockResult;
+        }
+
+        const lock: OperationLockRecord = {
+          scope: input.scope,
+          token: randomUUID(),
+          key: input.key,
+          owner: input.owner ?? null,
+          signalId: input.signalId ?? null,
+          acquiredAt: input.acquiredAt,
+          expiresAt: new Date(new Date(input.acquiredAt).getTime() + input.ttlMs).toISOString()
+        };
+        state.ops!.proof.lock = lock;
+        return {
+          status: 'acquired',
+          lock
+        } satisfies AcquireOperationLockResult;
+      });
+    },
+
+    async releaseOperationLock(scope: 'proof', token: string) {
+      await mutate(async (state) => {
+        if (scope === 'proof' && state.ops?.proof.lock?.token === token) {
+          state.ops.proof.lock = null;
+        }
       });
     },
 
@@ -281,6 +584,7 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
         generatedSignals: state.signals.length,
         committedSignals: committedSignals.length,
         resolvedSignals: resolvedSignals.length,
+        openSignals: committedSignals.filter((signal) => !signal.resolution).length,
         averageEdgeBps: average(state.signals.map((signal) => signal.edgeBps)),
         totalBondedMicroUsdc: committedSignals.reduce(
           (sum, signal) => sum + signal.stakeMicroUsdc,

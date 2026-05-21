@@ -445,3 +445,229 @@ The application MUST present an autonomous agent arena dashboard rather than a P
 
 - **WHEN** the user views the application
 - **THEN** there is no manual evidence textarea and no requirement to paste news, tweets, or market context
+
+### Requirement: Autonomous Agent Policy
+
+PredictArena MUST define an `AgentPolicy` model for every autonomous agent and MUST NOT allow unlimited autonomous spend.
+
+#### Scenario: Policy has finite budget limits
+
+- **WHEN** an autonomous run evaluates a signal for an agent
+- **THEN** that agent has a policy with mode `OFF`, `DRY_RUN`, or `LIVE`
+- **AND** the policy includes finite `maxDailyBondUsdc6`, `maxSignalsPerDay`, `maxStakePerSignalUsdc6`, `maxOpenSignals`, and `minEdgeBps`
+
+#### Scenario: Missing or unsafe LIVE budgets are rejected
+
+- **WHEN** a policy is configured for `LIVE`
+- **THEN** missing, negative, non-finite, or unlimited spend limits are rejected before any chain transaction
+
+### Requirement: Autonomous Cron Runner
+
+PredictArena MUST expose a secured cron runner that can run agents without user interaction.
+
+#### Scenario: Cron endpoint rejects unauthorized requests
+
+- **WHEN** `/api/cron/run-autonomous-agents` is called without `Authorization: Bearer <CRON_SECRET>` or with the wrong secret
+- **THEN** the request is rejected
+- **AND** no market scan, agent run, dry-run signal, or chain transaction is executed
+
+#### Scenario: Dry-run mode persists signals without chain transactions
+
+- **WHEN** the cron runner executes for an agent with mode `DRY_RUN`
+- **THEN** it fetches markets, runs agents, applies Risk Agent output, checks budgets, and persists dry-run queue outcomes
+- **AND** it does not call Arc approval or commit functions
+
+#### Scenario: Live mode commits only eligible signals
+
+- **WHEN** the cron runner executes for an agent with mode `LIVE`
+- **THEN** it commits only medium/high confidence non-AVOID signals that satisfy Risk Agent and all per-agent policy budgets
+- **AND** it records skipped reasons for low confidence, low edge, excessive stake, max daily spend, max daily signals, max open signals, mode off, and commit failures
+
+### Requirement: Autonomous Run History
+
+PredictArena MUST persist autonomous run history for UI and audit review.
+
+#### Scenario: Run history is available
+
+- **WHEN** an autonomous run completes
+- **THEN** the store persists run id, mode summary, generated signal count, dry-run count, committed count, skipped count, commit queue rows, budget snapshots, started time, completed time, and source
+- **AND** `/arena` can render recent autonomous runs without requiring a new run
+
+### Requirement: Arc Readiness and Chain Sync
+
+PredictArena MUST expose public Arc readiness and optional onchain synchronization without leaking secrets.
+
+#### Scenario: Control room shows public readiness
+
+- **WHEN** Arc config and agent keys are present
+- **THEN** the server exposes contract address, Arc chain id, agent wallet public addresses, USDC balances, allowances, latest known tx, and commit availability
+- **AND** private keys and `CRON_SECRET` are never returned
+
+#### Scenario: Onchain leaderboard sync degrades safely
+
+- **WHEN** onchain event/getter sync cannot run because RPC or contract config is missing
+- **THEN** the API returns a degraded sync status
+- **AND** the local leaderboard remains available from persisted state
+
+### Requirement: Demo Resolution Command
+
+PredictArena MUST provide a demo/admin resolution command path that closes the prediction -> bond -> settlement -> reputation loop without claiming decentralized oracle behavior.
+
+#### Scenario: Admin demo resolution updates reputation
+
+- **WHEN** an authorized admin marks a signal correct or incorrect
+- **THEN** the selected signal resolution state is persisted
+- **AND** leaderboard refunded/slashed/Brier score state updates
+- **AND** the UI labels this as demo/admin settlement
+
+### Requirement: CLOB Spread Risk Signal
+
+PredictArena MUST inspect public orderbook spread when a market has CLOB token ids and expose the result as a risk diagnostic.
+
+#### Scenario: Spread is available
+
+- **WHEN** a parsed market has CLOB token ids and public orderbook data is reachable
+- **THEN** the system computes spread, midpoint, and liquidity risk metadata
+- **AND** Decision Trace and Risk Agent diagnostics can show that metadata
+
+#### Scenario: Spread is unavailable
+
+- **WHEN** public orderbook data is missing or unreachable
+- **THEN** autonomous runs continue
+- **AND** the signal records a degraded spread diagnostic rather than failing the run
+
+### Requirement: Autonomous Run Receipt Read Model
+
+PredictArena MUST expose an auditable receipt for each persisted autonomous run without requiring user interaction or exposing server secrets.
+
+#### Scenario: Autonomous run receipt is retrieved
+
+- **WHEN** a client requests the receipt for a persisted autonomous run
+- **THEN** the response includes run id, source, timing, market count, generated signal count, mode by agent, queue outcomes, budget snapshots, related signal ids, confidence, edge, stake, model hash, data hash, policy decision, failure reason, and tx hash when present
+- **AND** the response does not expose `CRON_SECRET`, Supabase service role keys, agent private keys, or admin private keys
+
+#### Scenario: Unknown run receipt is requested
+
+- **WHEN** a client requests a receipt for an unknown autonomous run id
+- **THEN** the API returns a controlled not-found response without creating state or running agents
+
+### Requirement: Agent Reputation Profile Read Model
+
+PredictArena MUST expose per-agent reputation profiles derived from persisted generated, committed, and resolved signals.
+
+#### Scenario: Agent reputation is retrieved
+
+- **WHEN** a client requests the reputation profile for Volatility Agent or Momentum Agent
+- **THEN** the response includes generated, committed, open, resolved, accuracy, average edge, bonded/refunded/slashed USDC, paper ROI, Brier score, confidence distribution, recent signals, and best/worst resolved signals when available
+
+#### Scenario: Unsupported agent profile is requested
+
+- **WHEN** a client requests a profile for an unsupported agent name
+- **THEN** the API returns a controlled validation error
+
+### Requirement: Resolution Demo Script Read Model
+
+PredictArena MUST provide a guided demo script read model for settlement demonstrations while preserving admin-token authorization for mutations.
+
+#### Scenario: Demo script data is retrieved
+
+- **WHEN** a client opens the demo script surface
+- **THEN** the system returns eligible committed unresolved signals, recent resolved signals, leaderboard summary, and settlement guidance
+- **AND** the response labels settlement as demo/admin flow rather than an oracle
+
+#### Scenario: Demo settlement mutation remains protected
+
+- **WHEN** a demo script user attempts to mark a signal correct or incorrect
+- **THEN** the existing server-side admin token authorization is required before resolution state changes
+
+### Requirement: Cron Idempotency and Autonomous Run Locking
+
+PredictArena MUST prevent duplicate autonomous commit side effects from scheduler retries or overlapping cron invocations.
+
+#### Scenario: Run acquisition is atomic
+
+- **WHEN** concurrent cron requests attempt to start the same idempotency key or schedule-window id
+- **THEN** exactly one request acquires the run and lock through an atomic first-writer-wins operation
+- **AND** all other requests return the existing run or in-progress state
+- **AND** the non-winning requests perform no market fetch, agent run, Arc approval, or Arc commit side effect
+
+#### Scenario: Same idempotency key or schedule window is retried
+
+- **WHEN** the cron endpoint receives a retry with the same idempotency key or the same UTC schedule-window id as an existing autonomous run
+- **THEN** the system returns the existing run or in-progress state
+- **AND** it does not re-run commits or duplicate signal bonds for that key
+
+#### Scenario: Different cron run arrives while lock is active
+
+- **WHEN** a cron request arrives while a non-expired autonomous run lock is active
+- **THEN** the system returns a controlled locked response
+- **AND** no market fetch, agent run, Arc approval, or Arc commit side effect occurs
+
+#### Scenario: Commit succeeds but finalize fails
+
+- **WHEN** an autonomous run created a durable commit claim before attempting an Arc transaction
+- **AND** the process crashes or fails before final run persistence
+- **THEN** a retry MUST NOT submit a second Arc transaction for the same signal
+- **AND** operator health reports an uncertain claim requiring reconciliation before that signal can be retried
+
+#### Scenario: Lock expires after failed run
+
+- **WHEN** a previous lock has expired after a failed or interrupted run
+- **THEN** a new cron request may acquire the lock
+- **AND** the previous failure remains visible in operator health state
+- **AND** signals with successful, pending, or uncertain commit claims remain blocked from duplicate commit attempts
+
+### Requirement: Live Arc Smoke Proof Mode
+
+PredictArena MUST provide a safe proof mode for demonstrating Arc readiness and, when explicitly authorized, committing one bounded existing signal.
+
+#### Scenario: Read-only smoke runs
+
+- **WHEN** the proof smoke read endpoint is called
+- **THEN** it reports chain id, contract configuration, public agent wallet addresses, USDC balance, allowance, latest tx, and commit preconditions
+- **AND** it does not send Arc transactions or expose secrets
+
+#### Scenario: Transactional smoke is authorized
+
+- **WHEN** a caller provides the configured proof secret, an explicit existing signal id, and an explicit transactional intent
+- **THEN** the system may commit that signal only if it is eligible, uncommitted, within `PROOF_SMOKE_MAX_STAKE_USDC6`, within configured proof-specific daily spend and transaction-count caps, and compatible with existing budget/commit rules
+- **AND** the system creates a durable single-use proof claim and proof transaction lock before attempting any Arc transaction
+- **AND** the resulting tx hash is persisted like any other commit
+
+#### Scenario: Transactional smoke is retried
+
+- **WHEN** a transactional proof request is retried for a signal with an existing successful, pending, or uncertain proof claim
+- **THEN** the system returns the existing proof result or a reconciliation-required state
+- **AND** it does not send a second Arc transaction for that signal
+
+#### Scenario: Transactional smoke is unsafe
+
+- **WHEN** the proof secret is missing or invalid, the signal is already committed, the signal is ineligible, the stake exceeds the per-signal cap, the proof daily budget is exhausted, the proof transaction count is exhausted, or a proof/autonomy lock or claim blocks the request
+- **THEN** the system rejects the request with a machine-readable reason
+- **AND** no Arc approval or commit transaction is attempted
+
+#### Scenario: Public commit bypass is attempted
+
+- **WHEN** a caller attempts to use a server-wallet commit path without the required proof or autonomy authorization and finite budget/idempotency/claim checks
+- **THEN** the system rejects or disables the spend path
+- **AND** no Arc approval or commit transaction is attempted
+
+### Requirement: Operator Health and Judge Proof Pack Read Models
+
+PredictArena MUST expose sanitized operational proof data for judges and operators.
+
+#### Scenario: Operator health is retrieved
+
+- **WHEN** a client reads operator health
+- **THEN** the response includes last cron status, active lock state, budget warning state, chain/readiness state, allowance/balance warning state, and autonomy mode state
+- **AND** every degraded or blocked state includes a structured explanation with a reason code, blocking fact, impact scope, and recommended next action
+- **AND** the impact scope distinguishes read-only proof still safe, bounded proof transaction blocked, autonomy dry-run/off, and autonomy blocked states
+- **AND** no server secrets, lock owners, idempotency keys, raw RPC errors, stack-like messages, internal URLs, request headers, or provider diagnostics are exposed
+
+#### Scenario: Judge proof pack is retrieved
+
+- **WHEN** a client reads the proof pack
+- **THEN** the response includes latest autonomous receipt summary, Arc readiness facts, latest tx, bonded USDC, top reputation profile, resolution/refund/slash summary, and recommended next demo action
+- **AND** the response distinguishes read-only proof from transactional proof mode
+- **AND** public failure or warning details use sanitized reason codes and safe summaries only
+

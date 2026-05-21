@@ -99,4 +99,35 @@ describe('commitSignalToArena', () => {
     expect(String(writeContract.mock.calls[1]?.[0]?.address)).toContain('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
     expect(result.txHash).toContain('0xcommit');
   });
+
+  it('preserves the commit tx hash when receipt waiting fails', async () => {
+    vi.stubEnv('SIGNAL_BOND_ARENA_ADDRESS', '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
+    vi.stubEnv('VOL_AGENT_PRIVATE_KEY', '0x1111111111111111111111111111111111111111111111111111111111111111');
+
+    const txHash = '0xcommit0000000000000000000000000000000000000000000000000000000000002';
+    const waitForTransactionReceipt = vi.fn().mockRejectedValue(new Error('receipt_timeout'));
+    const writeContract = vi.fn().mockResolvedValue(txHash);
+    const store = createLocalStore({ storagePath: '/tmp/predictarena-commit-receipt-fail.json' });
+
+    await expect(
+      commitSignalToArena(store, createSignal(), {
+        createClients: () => ({
+          account: {
+            address: '0xvolatility0000000000000000000000000000000'
+          } as never,
+          publicClient: {
+            getChainId: vi.fn().mockResolvedValue(5_042_002),
+            readContract: vi.fn().mockResolvedValue(100_000n),
+            waitForTransactionReceipt
+          } as never,
+          walletClient: {
+            writeContract
+          } as never
+        })
+      })
+    ).rejects.toMatchObject({
+      message: 'commit_receipt_unconfirmed',
+      txHash
+    });
+  });
 });

@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import { AgentBadge } from '@/components/AgentBadge';
 import { HeroPill, NavPill, PageHero, PageShell, SectionLabel } from '@/components/PageShell';
 import { TxLink } from '@/components/TxLink';
+import { AdminDemoSettlement } from '@/app/signals/[id]/AdminDemoSettlement';
+import { fetchClobSpreadDiagnostic } from '@/lib/polymarket/orderbook';
 import { getRuntimeStore } from '@/lib/persistence/store';
 import { formatBps, formatMicroUsdc, formatUsd } from '@/lib/utils/format';
 import { buildSignalExplanation, normalizeSignalIdParam } from '@/lib/utils/signal';
@@ -10,6 +12,18 @@ export const dynamic = 'force-dynamic';
 
 function formatAgentName(agentName: 'volatility' | 'momentum') {
   return agentName === 'volatility' ? 'Volatility Agent' : 'Momentum Agent';
+}
+
+function formatModelPercent(value: unknown): string {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 'Unavailable';
+  }
+
+  return `${(value * 100).toFixed(2)}%`;
+}
+
+function formatOptionalBps(value: number | null): string {
+  return value === null ? 'Unavailable' : formatBps(value);
 }
 
 export default async function SignalDetailPage({
@@ -25,6 +39,9 @@ export default async function SignalDetailPage({
     notFound();
   }
 
+  const state = await store.getArenaState();
+  const market = state.markets.find((entry) => entry.id === signal.marketId);
+  const clobDiagnostic = await fetchClobSpreadDiagnostic(market?.clobTokenIds ?? []);
   const explanation = buildSignalExplanation(signal);
   const modelParams = JSON.stringify(signal.modelParams, null, 2);
   const resolution = signal.resolution
@@ -84,6 +101,91 @@ export default async function SignalDetailPage({
           </div>
         }
       />
+
+      <section className="detail-card detail-card-large decision-trace-card">
+        <div>
+          <p className="panel-kicker">Agentic Audit</p>
+          <h2 className="detail-title">Decision Trace</h2>
+        </div>
+        <div className="decision-trace-grid">
+          <article className="trace-card">
+            <span>Market Scout</span>
+            <strong>{market ? formatBps(market.scoutScoreBps) : 'Unavailable'}</strong>
+            <p>
+              Liquidity {market ? formatUsd(market.liquidity) : 'unavailable'} · volume{' '}
+              {market ? formatUsd(market.volume) : 'unavailable'}
+            </p>
+          </article>
+          <article className="trace-card">
+            <span>Volatility Summary</span>
+            <strong>{formatModelPercent(signal.modelParams.sigma)}</strong>
+            <p>
+              7d {formatModelPercent(signal.modelParams.sigma7)} · 30d{' '}
+              {formatModelPercent(signal.modelParams.sigma30)}
+            </p>
+          </article>
+          <article className="trace-card">
+            <span>Monte Carlo Probability</span>
+            <strong>{formatBps(signal.pYesBps)}</strong>
+            <p>Selected side probability {formatBps(signal.agentProbabilityBps)}</p>
+          </article>
+          <article className="trace-card">
+            <span>Momentum Drift</span>
+            <strong>{formatModelPercent(signal.modelParams.recentReturn7d)}</strong>
+            <p>Model version {signal.modelVersion}</p>
+          </article>
+          <article className="trace-card trace-card-wide">
+            <span>Risk Agent Timeline</span>
+            <ol className="trace-timeline">
+              <li>
+                <strong>Parse and market sanity</strong>
+                <p>{market ? `${formatBps(Math.round(market.parseConfidence * 10_000))} parse confidence` : 'Market snapshot unavailable'}</p>
+              </li>
+              <li>
+                <strong>Edge gate</strong>
+                <p>{signal.edgeBps >= 700 ? 'PASS' : 'BLOCK'} · {formatBps(signal.edgeBps)} edge</p>
+              </li>
+              <li>
+                <strong>Risk Agent</strong>
+                <p>{signal.riskFlags.length === 0 ? 'PASS with no flags' : `BLOCK / FLAGS: ${signal.riskFlags.join(', ')}`}</p>
+              </li>
+              <li>
+                <strong>Commit eligibility</strong>
+                <p>{signal.side !== 'AVOID' && signal.confidence !== 'LOW' ? 'Eligible for policy budget check' : 'Not eligible for autonomous commit'}</p>
+              </li>
+            </ol>
+          </article>
+          <article className="trace-card trace-card-wide">
+            <span>Deterministic Payload</span>
+            <pre className="audit-pre">{JSON.stringify({
+              modelHash: signal.modelHash,
+              dataHash: signal.dataHash,
+              marketId: signal.marketId,
+              side: signal.side,
+              pYesBps: signal.pYesBps,
+              modelParams: signal.modelParams
+            }, null, 2)}</pre>
+          </article>
+          <article className="trace-card trace-card-wide">
+            <span>CLOB Diagnostics</span>
+            <strong>{clobDiagnostic.status}</strong>
+            <p>
+              Token {clobDiagnostic.tokenId ?? 'unavailable'} · spread{' '}
+              {formatOptionalBps(clobDiagnostic.spreadBps)} · midpoint{' '}
+              {formatOptionalBps(clobDiagnostic.midpointBps)}
+            </p>
+            <p>
+              Liquidity{' '}
+              {clobDiagnostic.liquidityUsd === null
+                ? 'Unavailable'
+                : formatUsd(clobDiagnostic.liquidityUsd)}
+              {clobDiagnostic.reason ? ` · ${clobDiagnostic.reason}` : ''}
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <AdminDemoSettlement signalId={signal.id} />
 
       <section className="detail-layout">
         <article className="detail-card detail-card-large">

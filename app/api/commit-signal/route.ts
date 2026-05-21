@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { commitSignalToArena } from '@/lib/arc/commitSignal';
 import { getRuntimeStore } from '@/lib/persistence/store';
 
 const commitSignalBodySchema = z.object({
@@ -36,21 +35,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ reason: 'signal_not_eligible' }, { status: 409 });
   }
 
-  try {
-    const result = await commitSignalToArena(store, signal);
-    const committedSignal = await store.markSignalCommitted(
-      signal.id,
-      result.txHash,
-      result.signalRecordId
-    );
-
-    return NextResponse.json({
-      signal: committedSignal,
-      txHash: result.txHash,
-      signalRecordId: result.signalRecordId
-    });
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : 'commit_failed';
-    return NextResponse.json({ reason }, { status: 409 });
-  }
+  return NextResponse.json({ reason: 'public_commit_disabled' }, { status: 403 });
 }

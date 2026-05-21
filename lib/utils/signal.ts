@@ -4,8 +4,24 @@ export function normalizeSignalIdParam(id: string): string {
   return decodeURIComponent(id);
 }
 
+export function getSignalCommitEligibilityReason(signal: AgentSignal): string | null {
+  if (signal.side === 'AVOID') {
+    return 'signal_side_avoid';
+  }
+
+  if (signal.edgeBps < 700) {
+    return 'low_edge';
+  }
+
+  if (signal.confidence === 'LOW') {
+    return 'low_confidence';
+  }
+
+  return null;
+}
+
 export function isSignalEligibleForCommit(signal: AgentSignal): boolean {
-  return signal.side !== 'AVOID' && signal.edgeBps >= 700 && signal.confidence !== 'LOW';
+  return getSignalCommitEligibilityReason(signal) === null;
 }
 
 export function buildSignalExplanation(signal: AgentSignal): string {

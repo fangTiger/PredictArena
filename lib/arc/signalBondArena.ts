@@ -22,6 +22,40 @@ export const signalBondArenaAbi = [
     ]
   },
   {
+    type: 'event',
+    name: 'SignalResolved',
+    inputs: [
+      { name: 'signalRecordId', type: 'uint256', indexed: true },
+      { name: 'outcomeCorrect', type: 'bool', indexed: false },
+      { name: 'recipient', type: 'address', indexed: true },
+      { name: 'stakeMicroUsdc', type: 'uint256', indexed: false }
+    ]
+  },
+  {
+    type: 'function',
+    name: 'signals',
+    stateMutability: 'view',
+    inputs: [{ name: '', type: 'uint256' }],
+    outputs: [
+      { name: 'id', type: 'uint256' },
+      { name: 'externalSignalId', type: 'string' },
+      { name: 'marketId', type: 'string' },
+      { name: 'agent', type: 'address' },
+      { name: 'agentName', type: 'string' },
+      { name: 'sideYes', type: 'bool' },
+      { name: 'marketPriceBps', type: 'uint16' },
+      { name: 'agentProbabilityBps', type: 'uint16' },
+      { name: 'confidenceBps', type: 'uint16' },
+      { name: 'edgeBps', type: 'uint16' },
+      { name: 'stakeMicroUsdc', type: 'uint256' },
+      { name: 'modelHash', type: 'bytes32' },
+      { name: 'dataHash', type: 'bytes32' },
+      { name: 'committedAt', type: 'uint64' },
+      { name: 'resolved', type: 'bool' },
+      { name: 'outcomeCorrect', type: 'bool' }
+    ]
+  },
+  {
     type: 'function',
     name: 'commitSignal',
     stateMutability: 'nonpayable',

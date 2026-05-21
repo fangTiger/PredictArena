@@ -95,6 +95,7 @@ describe('Supabase persistence store', () => {
       generatedSignals: 1,
       committedSignals: 1,
       resolvedSignals: 0,
+      openSignals: 1,
       averageEdgeBps: 2200,
       totalBondedMicroUsdc: 50000
     });

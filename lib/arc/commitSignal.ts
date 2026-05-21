@@ -14,6 +14,30 @@ interface CommitSignalDeps {
   createClients?: typeof createArcClients;
 }
 
+export class CommitReceiptUnconfirmedError extends Error {
+  txHash: `0x${string}`;
+
+  constructor(txHash: `0x${string}`, cause: unknown) {
+    super('commit_receipt_unconfirmed', { cause });
+    this.name = 'CommitReceiptUnconfirmedError';
+    this.txHash = txHash;
+  }
+}
+
+export function getCommitTxHashFromError(error: unknown): `0x${string}` | null {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'txHash' in error &&
+    typeof error.txHash === 'string' &&
+    /^0x[0-9a-fA-F]+$/.test(error.txHash)
+  ) {
+    return error.txHash as `0x${string}`;
+  }
+
+  return null;
+}
+
 export async function commitSignalToArena(
   _store: PersistenceStore,
   signal: AgentSignal,
@@ -50,7 +74,12 @@ export async function commitSignalToArena(
     arenaAddress: env.arc.signalBondArenaAddress,
     signal
   });
-  const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  let receipt: unknown;
+  try {
+    receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+  } catch (error) {
+    throw new CommitReceiptUnconfirmedError(txHash, error);
+  }
 
   return {
     txHash,

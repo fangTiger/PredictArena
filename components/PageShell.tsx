@@ -20,6 +20,9 @@ export function PageShell({ children }: { children: ReactNode }) {
           <Link href="/arena" className="icon-link">
             Arena
           </Link>
+          <Link href="/proof" className="icon-link">
+            Proof Pack
+          </Link>
           <Link href="/leaderboard" className="icon-link">
             Leaderboard
           </Link>

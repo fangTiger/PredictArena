@@ -33,7 +33,7 @@ export function LeaderboardTable({ entries }: { entries: LeaderboardEntry[] }) {
               <tr key={entry.agentName}>
                 <td>{entry.rank}</td>
                 <td>
-                  <Link href="/arena" className="table-agent-link">
+                  <Link href={`/agents/${entry.agentName}`} className="table-agent-link">
                     {formatAgentName(entry.agentName)}
                   </Link>
                 </td>

@@ -123,4 +123,234 @@ describe('local persistence store', () => {
     expect(signals).toHaveLength(1);
     expect(signals[0]?.id).toBe(TEST_SIGNAL.id);
   });
+
+  it('persists autonomous run history and queue outcomes across reloads', async () => {
+    const workdir = path.join(tmpdir(), `predictarena-autonomy-store-${randomUUID()}`);
+    await fs.mkdir(workdir, { recursive: true });
+
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const store = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
+    });
+
+    await store.saveAutonomousRun({
+      runId: 'auto-run-1',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:00.000Z',
+      completedAt: '2026-05-20T12:00:05.000Z',
+      marketCount: 1,
+      generatedSignalCount: 1,
+      modeByAgent: {
+        volatility: 'DRY_RUN',
+        momentum: 'OFF'
+      },
+      queue: [
+        {
+          signalId: TEST_SIGNAL.id,
+          agentName: 'volatility',
+          status: 'dry_run_eligible',
+          reason: null,
+          txHash: null,
+          edgeBps: TEST_SIGNAL.edgeBps,
+          stakeMicroUsdc: TEST_SIGNAL.stakeMicroUsdc
+        }
+      ]
+    });
+
+    const reloadedStore = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
+    });
+    const state = await reloadedStore.getArenaState();
+
+    expect(state.autonomyRuns).toHaveLength(1);
+    expect(state.autonomyRuns[0]).toMatchObject({
+      runId: 'auto-run-1',
+      queue: [
+        expect.objectContaining({
+          signalId: TEST_SIGNAL.id,
+          status: 'dry_run_eligible'
+        })
+      ]
+    });
+  });
+
+  it('syncs autonomous run history inside the Supabase payload state', async () => {
+    const fetchMock = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      if (!init?.method || init.method === 'GET') {
+        return new Response(JSON.stringify([]), {
+          status: 200,
+          headers: { 'content-type': 'application/json' }
+        });
+      }
+
+      return new Response(null, { status: 201 });
+    });
+    vi.stubGlobal('fetch', fetchMock as typeof fetch);
+
+    const { createSupabaseStore } = await import('@/lib/persistence/supabaseStore');
+    const store = createSupabaseStore({
+      url: 'https://example.supabase.co',
+      serviceRoleKey: 'service-role-key',
+      stateTable: 'predictarena_state'
+    });
+
+    await store.saveAutonomousRun({
+      runId: 'supabase-auto-run-1',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:00.000Z',
+      completedAt: '2026-05-20T12:00:05.000Z',
+      marketCount: 1,
+      generatedSignalCount: 1,
+      modeByAgent: {
+        volatility: 'DRY_RUN',
+        momentum: 'OFF'
+      },
+      queue: []
+    });
+
+    const saveCall = fetchMock.mock.calls.find(([, init]) => init?.method === 'POST');
+    const body = saveCall?.[1]?.body;
+    expect(typeof body).toBe('string');
+    expect(String(body)).toContain('supabase-auto-run-1');
+    expect(String(body)).toContain('autonomyRuns');
+  });
+
+  it('acquires autonomous runs once per key or schedule window and blocks conflicting locks', async () => {
+    const workdir = path.join(tmpdir(), `predictarena-lock-store-${randomUUID()}`);
+    await fs.mkdir(workdir, { recursive: true });
+
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const store = createLocalStore({
+      storagePath: path.join(workdir, 'predictarena-store.json')
+    });
+
+    const first = await store.acquireAutonomousRun({
+      runId: 'auto-run-1',
+      idempotencyKey: 'cron:window-1',
+      scheduleWindowId: '2026-05-20T12:00:00.000Z/15m',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:00.000Z',
+      lockTtlMs: 60_000
+    });
+    const sameKey = await store.acquireAutonomousRun({
+      runId: 'auto-run-2',
+      idempotencyKey: 'cron:window-1',
+      scheduleWindowId: '2026-05-20T12:15:00.000Z/15m',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:10.000Z',
+      lockTtlMs: 60_000
+    });
+    const sameWindow = await store.acquireAutonomousRun({
+      runId: 'auto-run-3',
+      idempotencyKey: 'cron:window-3',
+      scheduleWindowId: '2026-05-20T12:00:00.000Z/15m',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:20.000Z',
+      lockTtlMs: 60_000
+    });
+    const locked = await store.acquireAutonomousRun({
+      runId: 'auto-run-4',
+      idempotencyKey: 'cron:window-4',
+      scheduleWindowId: '2026-05-20T12:30:00.000Z/15m',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:00:30.000Z',
+      lockTtlMs: 60_000
+    });
+    const recovered = await store.acquireAutonomousRun({
+      runId: 'auto-run-5',
+      idempotencyKey: 'cron:window-5',
+      scheduleWindowId: '2026-05-20T12:45:00.000Z/15m',
+      source: 'demo_snapshot',
+      triggeredAt: '2026-05-20T12:02:01.000Z',
+      lockTtlMs: 60_000
+    });
+
+    expect(first).toMatchObject({
+      status: 'acquired',
+      run: {
+        runId: 'auto-run-1',
+        idempotencyKey: 'cron:window-1',
+        scheduleWindowId: '2026-05-20T12:00:00.000Z/15m',
+        status: 'started'
+      }
+    });
+    expect(sameKey).toMatchObject({
+      status: 'duplicate',
+      duplicateBy: 'idempotency_key',
+      run: {
+        runId: 'auto-run-1'
+      }
+    });
+    expect(sameWindow).toMatchObject({
+      status: 'duplicate',
+      duplicateBy: 'schedule_window',
+      run: {
+        runId: 'auto-run-1'
+      }
+    });
+    expect(locked).toMatchObject({
+      status: 'locked',
+      lock: {
+        runId: 'auto-run-1'
+      }
+    });
+    expect(recovered).toMatchObject({
+      status: 'acquired',
+      run: {
+        runId: 'auto-run-5',
+        status: 'started'
+      }
+    });
+  });
+
+  it('persists uncertain autonomy commit claims across reloads for crash recovery', async () => {
+    const workdir = path.join(tmpdir(), `predictarena-claims-store-${randomUUID()}`);
+    await fs.mkdir(workdir, { recursive: true });
+
+    const { createLocalStore } = await import('@/lib/persistence/localStore');
+    const storagePath = path.join(workdir, 'predictarena-store.json');
+    const store = createLocalStore({ storagePath });
+
+    const acquired = await store.acquireCommitClaim({
+      scope: 'autonomy',
+      claimKey: 'autonomy:5042002:arena-1:demo-btc-105k:volatility',
+      signalId: TEST_SIGNAL.id,
+      agentName: 'volatility',
+      stakeMicroUsdc: TEST_SIGNAL.stakeMicroUsdc,
+      chainId: 5_042_002,
+      arenaAddress: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      createdAt: '2026-05-20T12:00:00.000Z',
+      runId: 'auto-run-1'
+    });
+
+    await store.updateCommitClaim({
+      scope: 'autonomy',
+      claimKey: 'autonomy:5042002:arena-1:demo-btc-105k:volatility',
+      status: 'uncertain',
+      txHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      reasonCode: 'persist_committed_signal_failed',
+      updatedAt: '2026-05-20T12:00:03.000Z'
+    });
+
+    const reloadedStore = createLocalStore({ storagePath });
+    const opsState = await reloadedStore.getOperationsState();
+
+    expect(acquired).toMatchObject({
+      status: 'acquired',
+      claim: {
+        signalId: TEST_SIGNAL.id,
+        status: 'pending'
+      }
+    });
+    expect(opsState.autonomous.claims).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          claimKey: 'autonomy:5042002:arena-1:demo-btc-105k:volatility',
+          status: 'uncertain',
+          txHash: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          reasonCode: 'persist_committed_signal_failed'
+        })
+      ])
+    );
+  });
 });

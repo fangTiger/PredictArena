@@ -1,6 +1,13 @@
 export const erc20Abi = [
   {
     type: 'function',
+    name: 'balanceOf',
+    stateMutability: 'view',
+    inputs: [{ name: 'account', type: 'address' }],
+    outputs: [{ name: '', type: 'uint256' }]
+  },
+  {
+    type: 'function',
     name: 'allowance',
     stateMutability: 'view',
     inputs: [
@@ -20,6 +27,46 @@ export const erc20Abi = [
     outputs: [{ name: '', type: 'bool' }]
   }
 ] as const;
+
+export async function readUsdcBalance({
+  publicClient,
+  ownerAddress,
+  usdcAddress
+}: {
+  publicClient: {
+    readContract: (...args: any[]) => Promise<unknown>;
+  };
+  ownerAddress: `0x${string}`;
+  usdcAddress: `0x${string}`;
+}): Promise<bigint> {
+  return (await publicClient.readContract({
+    address: usdcAddress,
+    abi: erc20Abi,
+    functionName: 'balanceOf',
+    args: [ownerAddress]
+  })) as bigint;
+}
+
+export async function readUsdcAllowance({
+  publicClient,
+  ownerAddress,
+  spender,
+  usdcAddress
+}: {
+  publicClient: {
+    readContract: (...args: any[]) => Promise<unknown>;
+  };
+  ownerAddress: `0x${string}`;
+  spender: `0x${string}`;
+  usdcAddress: `0x${string}`;
+}): Promise<bigint> {
+  return (await publicClient.readContract({
+    address: usdcAddress,
+    abi: erc20Abi,
+    functionName: 'allowance',
+    args: [ownerAddress, spender]
+  })) as bigint;
+}
 
 export async function ensureUsdcAllowance({
   publicClient,
@@ -41,12 +88,12 @@ export async function ensureUsdcAllowance({
   usdcAddress: `0x${string}`;
   amount: bigint;
 }): Promise<void> {
-  const allowance = (await publicClient.readContract({
-    address: usdcAddress,
-    abi: erc20Abi,
-    functionName: 'allowance',
-    args: [ownerAddress, spender]
-  })) as bigint;
+  const allowance = await readUsdcAllowance({
+    publicClient,
+    ownerAddress,
+    spender,
+    usdcAddress
+  });
 
   if (allowance >= amount) {
     return;
