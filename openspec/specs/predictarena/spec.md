@@ -181,30 +181,37 @@ PredictArena MUST provide a `SignalBondArena` contract on Arc Testnet that recor
 
 ### Requirement: Server-Side Arc Commit Flow
 
-PredictArena MUST commit eligible signals through server-side viem code using testnet-only agent private keys from environment variables.
+PredictArena MUST keep unauthenticated public server-wallet commit paths disabled and MUST execute server-side Arc commits only through explicitly authorized autonomy or proof flows that enforce finite budgets, idempotency, claims, and locks.
 
-#### Scenario: Eligible signal is committed
+#### Scenario: Public commit endpoint is disabled
 
-- **WHEN** `POST /api/commit-signal` receives a non-AVOID signal with edge at least 700 bps and medium or high confidence
-- **THEN** the server chooses the matching agent private key
+- **WHEN** a caller invokes `POST /api/commit-signal` as a public unauthenticated spend path
+- **THEN** the API rejects the request with a machine-readable reason such as `public_commit_disabled`
+- **AND** no Arc approval, Arc commit, private key selection, or signal mutation occurs
+
+#### Scenario: Authorized autonomy or proof commit is executed
+
+- **WHEN** an autonomy or proof flow is explicitly authorized and receives a non-AVOID signal with edge at least 700 bps, medium or high confidence, valid Arc configuration, matching agent wallet key, finite budget allowance, and a durable claim or lock
+- **THEN** the server chooses the matching agent private key server-side
 - **AND** checks USDC allowance
 - **AND** approves USDC if needed
 - **AND** calls `SignalBondArena.commitSignal`
 - **AND** persists the Arc transaction hash and committed status
 
-#### Scenario: Ineligible signal is rejected
+#### Scenario: Ineligible or unsafe commit is rejected
 
-- **WHEN** the signal is AVOID, low edge, low confidence, missing contract address, or missing agent wallet key
-- **THEN** the API rejects the commit request with a clear machine-readable reason
+- **WHEN** the signal is AVOID, low edge, low confidence, missing contract address, missing agent wallet key, over budget, duplicate claimed, locked, already committed, or outside authorized autonomy/proof context
+- **THEN** the API or service rejects the commit request with a clear machine-readable reason
+- **AND** no duplicate Arc approval or commit transaction is attempted
 
 #### Scenario: Agent private keys remain server-only
 
-- **WHEN** commit configuration is loaded or commit APIs respond
+- **WHEN** commit configuration is loaded or commit-related APIs respond
 - **THEN** `VOL_AGENT_PRIVATE_KEY`, `MOMENTUM_AGENT_PRIVATE_KEY`, and `ADMIN_PRIVATE_KEY` are never exposed in client bundles, public API JSON, snapshots, README examples, or UI-rendered state
 
 #### Scenario: Admin private key is not used for demo resolve
 
-- **WHEN** `POST /api/resolve-demo` is called
+- **WHEN** `POST /api/resolve-demo` or `POST /api/admin/resolve-demo` is called
 - **THEN** authorization is based on `ADMIN_RESOLVE_TOKEN`
 - **AND** `ADMIN_PRIVATE_KEY` is not required for this route and is reserved for deployment or explicit onchain owner/admin operations
 
@@ -670,4 +677,238 @@ PredictArena MUST expose sanitized operational proof data for judges and operato
 - **THEN** the response includes latest autonomous receipt summary, Arc readiness facts, latest tx, bonded USDC, top reputation profile, resolution/refund/slash summary, and recommended next demo action
 - **AND** the response distinguishes read-only proof from transactional proof mode
 - **AND** public failure or warning details use sanitized reason codes and safe summaries only
+
+### Requirement: Market Intelligence Read Models
+
+PredictArena MUST expose read-only market intelligence items that help users triage supported prediction markets by opportunity, risk, and data health.
+
+#### Scenario: Ranked intelligence markets are retrieved
+
+- **WHEN** a client requests market intelligence for supported BTC, ETH, or SOL markets
+- **THEN** the system returns ranked market intelligence items with market identity, asset, condition type, threshold, expiry, market prices, liquidity, optional spread diagnostics, volatility context, latest agent probabilities, edge, confidence, risk flags, opportunity score, risk score, data health score, and deterministic summary
+- **AND** the response does not require manual market creation, manual evidence input, or authenticated Polymarket trading access
+
+#### Scenario: Intelligence data is degraded
+
+- **WHEN** live market, orderbook, candle, or persisted signal data is missing or stale
+- **THEN** the system returns available safe fields with explicit data health and degraded-source indicators
+- **AND** the system does not fabricate external context or hide missing-data risk
+
+#### Scenario: Intelligence scores are deterministic and bounded
+
+- **WHEN** the same persisted markets, prices, signals, runs, and resolutions are used to build intelligence items
+- **THEN** opportunity score, risk score, data health score, and deterministic summary are stable across repeated reads
+- **AND** each score is an integer in the inclusive range `[0,10000]`
+- **AND** opportunity score is labeled as a research-priority score rather than a buy, sell, trade, or follow recommendation
+
+#### Scenario: Intelligence response is allowlisted
+
+- **WHEN** a public intelligence API returns market intelligence items
+- **THEN** the response includes only safe public ids, timestamps, public market fields, public addresses, hashes, transaction hashes, bps metrics, score bps, safe enum reason codes, sanitized summaries, and aggregate counts
+- **AND** it does not include `rawPayload`, private keys, service-role keys, cron/proof/admin secrets, lock token or owner, idempotency keys, raw provider/RPC errors, stack-like diagnostics, internal URLs, request headers, server config, or unbounded persisted state blobs
+
+### Requirement: Signal Research Read Model
+
+PredictArena MUST provide deterministic research views that explain market pricing, agent disagreement, risk drivers, and accountability state.
+
+#### Scenario: Signal research is retrieved
+
+- **WHEN** a client requests research for a known signal or market
+- **THEN** the response includes implied probability, agent probability, probability gap, volatility and momentum drivers, Market Scout context, CLOB/spread diagnostics when available, Risk Agent timeline, model/data hashes, comparable persisted outcomes when available, and Arc/proof/dry-run/resolution accountability state
+- **AND** the explanation is generated from stored fields and public data rather than manual evidence or invented news context
+
+#### Scenario: Research target query is validated
+
+- **WHEN** a client requests signal research with both `signalId` and `marketId`, or with neither field
+- **THEN** the API returns `invalid_request`
+- **AND** no agent run, market mutation, Arc transaction, proof transaction, or resolution side effect occurs
+
+#### Scenario: Unknown research target is requested
+
+- **WHEN** a client requests research for an unknown signal id or market id
+- **THEN** the API returns a controlled not-found or validation response
+- **AND** no agent run, market mutation, Arc transaction, or resolution side effect occurs
+
+### Requirement: Segmented Agent Reputation
+
+PredictArena MUST compare agent performance by useful market segments rather than only aggregate totals.
+
+#### Scenario: Segmented reputation is retrieved
+
+- **WHEN** a client requests agent reputation grouped by asset, condition type, expiry bucket, confidence bucket, or edge bucket
+- **THEN** the response includes generated count, committed count, resolved count, accuracy, Brier score, average edge, paper ROI when available, bonded USDC, refunded USDC, and slashed USDC for each segment
+- **AND** segments with resolved count below the requested `minResolved` threshold, defaulting to `3`, are labeled as insufficient data rather than over-interpreted
+
+#### Scenario: Unsupported segment filter is rejected
+
+- **WHEN** a client requests an unsupported grouping or invalid filter
+- **THEN** the API returns a controlled validation error
+- **AND** no persisted state is mutated
+
+### Requirement: Paper Follow and Backtest Read Models
+
+PredictArena MUST provide read-only paper-follow results for selected agents or simple strategies using persisted signals and resolutions.
+
+#### Scenario: Paper-follow result is computed
+
+- **WHEN** a client requests a paper-follow result for an agent or strategy with valid filters
+- **THEN** the system returns included signal count, skipped signal count, unresolved count, cumulative paper ROI, hit rate, Brier score, average edge, max drawdown, breakdown by asset and condition type, source mix, and explicit strategy assumptions
+- **AND** the result is labeled as research/backtest output rather than financial advice or a recommendation to trade
+
+#### Scenario: Paper-follow has insufficient data
+
+- **WHEN** too few matching resolved signals exist
+- **THEN** the response indicates insufficient data and still returns the assumptions and skipped/unresolved counts
+- **AND** it does not imply statistical confidence that the data cannot support
+
+#### Scenario: Paper-follow remains read-only
+
+- **WHEN** a paper-follow API or UI surface is used
+- **THEN** it does not call Arc commit, proof transaction, Polymarket trading, demo resolution, autonomous run, or any other mutation path
+- **AND** it does not expose server-only secrets or private runtime diagnostics
+
+### Requirement: Local Intelligence Workspace Identity
+
+PredictArena MUST support a lightweight local workspace identity for saved intelligence preferences without treating that identity as authentication.
+
+#### Scenario: Workspace id is accepted for non-sensitive preference state
+
+- **WHEN** a client sends a valid generated workspace id to saved-intelligence APIs
+- **THEN** the system scopes saved filters, watched markets, alerts, and daily queue state to that workspace id
+- **AND** the stored data is limited to bounded research preferences, safe public market references, deterministic alert state, and safe evaluation snapshots
+
+#### Scenario: Invalid workspace id is rejected
+
+- **WHEN** a client sends a missing, malformed, overlong, or unsupported workspace id to a saved-intelligence mutation or workspace-specific read
+- **THEN** the API returns `invalid_request`
+- **AND** no preference, alert, market, signal, Arc, proof, autonomy, or resolution state is mutated
+
+#### Scenario: Workspace id is not presented as authentication
+
+- **WHEN** saved-intelligence APIs or UI describe local workspace state
+- **THEN** they label it as local convenience state rather than login, account security, ownership proof, custody, or cross-device identity
+- **AND** no sensitive data, secrets, private runtime diagnostics, or transaction authority is protected only by the workspace id
+
+#### Scenario: Workspace ownership mismatch is hidden
+
+- **WHEN** a client attempts to update, delete, read, or mark a saved filter, watched market, or alert that does not belong to the supplied workspace id
+- **THEN** the API returns `not_found` with HTTP `404`
+- **AND** the response does not reveal whether the resource exists in another workspace
+- **AND** no preference, alert, market, signal, Arc, proof, autonomy, or resolution state is mutated
+
+### Requirement: Saved Intelligence Filters
+
+PredictArena MUST let users save bounded market-intelligence filter presets for repeat research.
+
+#### Scenario: Saved filter is created
+
+- **WHEN** a client creates a saved filter with a valid workspace id, bounded name, and supported `/api/intelligence/markets` query fields
+- **THEN** the system persists the saved filter with created and updated timestamps
+- **AND** the saved filter contains only allowlisted filter fields, threshold fields, enabled state, and a bounded latest evaluation snapshot
+
+#### Scenario: Saved filter thresholds are validated
+
+- **WHEN** a client creates or updates saved filter alert thresholds
+- **THEN** `minOpportunityScoreBps` and `minDataHealthScoreBps` are integers in `[0,10000]`
+- **AND** `edgeChangeThresholdBps`, `disagreementChangeThresholdBps`, and `dataHealthDropThresholdBps` are integers in `[100,5000]`
+- **AND** `nearExpiryHours` is an integer in `[1,168]`
+- **AND** invalid thresholds return `invalid_request` without persisting partial updates
+
+#### Scenario: Saved filter limits are enforced
+
+- **WHEN** a workspace already has the maximum allowed saved filters or sends an overlong name or unsupported query field
+- **THEN** the API returns `saved_intelligence_limit_reached` with HTTP `409` for item caps or `invalid_request` with HTTP `400` for invalid shape
+- **AND** no partial saved filter is persisted
+
+#### Scenario: Saved filter is evaluated
+
+- **WHEN** saved filters are evaluated against current market intelligence data
+- **THEN** the system records a bounded evaluation snapshot with matched count, top safe market ids, top opportunity score, top edge, top data-health score, evaluated timestamp, freshness state, and optional sanitized failure reason
+- **AND** the evaluation does not store raw provider payloads or fabricate external context
+
+### Requirement: Intelligence Watchlist
+
+PredictArena MUST let users watch supported public markets for repeat research without creating markets or entering evidence manually.
+
+#### Scenario: Market is added to watchlist
+
+- **WHEN** a client adds a known public intelligence market to the watchlist
+- **THEN** the system persists a watch item with safe public market identity, optional bounded label or note, timestamps, and current support state
+- **AND** adding a watched market does not create a market, run agents, send a transaction, or mutate signal/resolution state
+
+#### Scenario: Duplicate watched market is handled
+
+- **WHEN** a client adds a market that is already watched by the same workspace
+- **THEN** the API returns HTTP `200` with the existing watch item and `duplicate: true`
+- **AND** no duplicate watch record is created
+
+#### Scenario: Watched market becomes unavailable
+
+- **WHEN** a watched market expires, disappears from the public source, becomes unsupported, or has degraded data
+- **THEN** the watchlist still returns the item with a safe degraded reason
+- **AND** the system does not silently delete the user's watch item
+
+### Requirement: Intelligence Alert Evaluation
+
+PredictArena MUST generate deterministic in-app research alerts from saved filters, watched markets, and existing market intelligence read models.
+
+#### Scenario: Alert evaluation creates bounded alerts
+
+- **WHEN** alert evaluation runs for a workspace
+- **THEN** the system may create alerts with reason code, severity, source reference, safe market or signal ids, previous and current metric snapshot, deterministic summary, timestamps, and read/dismissed state
+- **AND** supported first-version reason codes include `new_high_priority_market`, `edge_changed`, `agent_disagreement_changed`, `data_health_degraded`, and `near_expiry`
+
+#### Scenario: Alert evaluation reports freshness
+
+- **WHEN** alert evaluation completes, has never run, is stale, or fails with a sanitized error
+- **THEN** the API returns freshness state as `never_evaluated`, `fresh`, `stale`, or `failed`
+- **AND** successful evaluations include `evaluatedAt`, `createdAlertCount`, `suppressedDuplicateCount`, and `updatedSnapshotCount`
+- **AND** failed evaluations preserve previous successful snapshots when available and expose only a sanitized reason such as `evaluation_failed` or `saved_intelligence_unavailable`
+
+#### Scenario: Duplicate alerts are suppressed
+
+- **WHEN** alert evaluation observes the same workspace, source, reason code, market, and current metric snapshot as an existing active alert
+- **THEN** the system does not create a duplicate unread alert
+- **AND** the API returns deterministic evaluation counts
+
+#### Scenario: Alert evaluation remains isolated
+
+- **WHEN** alert evaluation is requested
+- **THEN** it does not call Arc commit, proof transaction, Polymarket trading, demo resolution, autonomous run, market mutation, or agent generation paths
+- **AND** it does not expose server-only secrets, raw provider diagnostics, or private runtime internals
+
+#### Scenario: Saved-intelligence persistence is isolated
+
+- **WHEN** saved filters, watchlist items, alerts, or daily queue snapshots are persisted
+- **THEN** saved-intelligence data is stored in an isolated namespace or subdocument keyed by workspace id
+- **AND** existing arena, market, signal, autonomous run, proof, Arc, ops, resolution, claim, lock, and leaderboard state is preserved without semantic changes
+- **AND** older local fallback state without saved-intelligence data remains readable
+
+#### Scenario: Alerts are research prompts
+
+- **WHEN** alerts are returned by API or displayed in UI
+- **THEN** they use research language such as review, changed, data health, disagreement, or near expiry
+- **AND** they do not say buy, sell, trade now, copy, guaranteed, recommended position, or financial advice
+
+### Requirement: Daily Intelligence Queue
+
+PredictArena MUST provide a daily research queue that prioritizes saved-filter matches, watched markets, unread alerts, expiry urgency, and data-health changes.
+
+#### Scenario: Daily queue is retrieved
+
+- **WHEN** a client requests the daily queue for a workspace
+- **THEN** the system returns bounded queue items with source type, safe market or signal ids, reason codes, severity, current score snapshot, expiry context, data-health state, freshness state, unread alert references, and deterministic summary
+- **AND** each item links back to the existing read-only intelligence research path
+
+#### Scenario: Daily queue has no saved state
+
+- **WHEN** a workspace has no saved filters, watched markets, or alerts
+- **THEN** the API returns an empty or onboarding-safe queue response with suggested non-mutating next actions
+- **AND** it does not create default watch items, run agents, create markets, or send transactions
+
+#### Scenario: Queue ranking is deterministic
+
+- **WHEN** the same saved state and market intelligence data are used to build the queue
+- **THEN** queue order is stable across repeated reads
+- **AND** ranking prefers urgent unread alerts, near-expiry watched markets, high opportunity scores, large agent disagreement, and data-health degradation without labeling any item as a trade recommendation
 

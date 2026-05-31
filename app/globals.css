@@ -1746,6 +1746,817 @@ code {
   gap: 10px;
 }
 
+.intelligence-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.intelligence-command {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+  gap: 18px;
+  align-items: stretch;
+  padding: 18px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(115deg, var(--surface-strong), color-mix(in srgb, var(--surface-strong) 88%, var(--arc-blue))),
+    var(--surface-strong);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(18px);
+}
+
+.intelligence-command-copy {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.intelligence-command h1 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 4.1rem;
+  line-height: 0.92;
+  letter-spacing: 0;
+}
+
+.intelligence-command p {
+  max-width: 78ch;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.58;
+}
+
+.intelligence-command-boundaries {
+  margin-top: 4px;
+}
+
+.intelligence-command-visual {
+  grid-column: auto;
+  grid-row: auto;
+  min-height: 100%;
+}
+
+.intelligence-forecast-panel {
+  min-height: 320px;
+}
+
+.intelligence-command .forecast-radar {
+  min-height: 220px;
+}
+
+.intelligence-command-side,
+.intelligence-overview,
+.intelligence-controls,
+.intelligence-probability-grid,
+.intelligence-facts,
+.intelligence-score-stack {
+  display: grid;
+  gap: 10px;
+}
+
+.intelligence-command-side {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-width: min(420px, 100%);
+}
+
+.intelligence-overview {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.intelligence-metric {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 84%, transparent);
+  box-shadow: var(--shadow-soft);
+}
+
+.intelligence-metric span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-metric strong {
+  display: block;
+  margin-top: 6px;
+  color: var(--ink-strong);
+  font-size: 1.35rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-metric-mint {
+  border-color: color-mix(in srgb, var(--signal-mint) 26%, var(--line-soft));
+}
+
+.intelligence-metric-amber {
+  border-color: color-mix(in srgb, var(--caution) 28%, var(--line-soft));
+}
+
+.intelligence-metric-risk {
+  border-color: color-mix(in srgb, var(--risk) 28%, var(--line-soft));
+}
+
+.intelligence-layout {
+  display: grid;
+  grid-template-columns: minmax(430px, 1.2fr) minmax(340px, 0.8fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.intelligence-saved-panel {
+  position: relative;
+  display: grid;
+  gap: 12px;
+  overflow: hidden;
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--arc-blue) 8%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--signal-mint) 7%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--surface-strong) 92%, transparent);
+  background-size: 34px 34px;
+}
+
+.intelligence-saved-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.intelligence-loop-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.intelligence-loop-strip > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 74%, transparent);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+}
+
+.intelligence-loop-strip span,
+.intelligence-loop-strip small {
+  color: var(--muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.intelligence-loop-strip strong {
+  color: var(--ink-strong);
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.intelligence-saved-status button,
+.intelligence-saved-card button {
+  min-height: 36px;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  background: var(--surface-strong);
+  box-shadow: none;
+}
+
+.intelligence-saved-status button:hover,
+.intelligence-saved-card button:hover {
+  border-color: color-mix(in srgb, var(--arc-blue) 42%, var(--line-soft));
+  color: var(--arc-blue);
+}
+
+.intelligence-saved-card button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.intelligence-cockpit {
+  display: grid;
+  grid-template-columns: minmax(420px, 0.86fr) minmax(0, 1.42fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.intelligence-workspace-console,
+.intelligence-signal-flow {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  align-items: start;
+}
+
+.intelligence-workspace-console {
+  padding: 12px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 84%, transparent);
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--arc-blue) 7%, transparent) 1px, transparent 1px),
+    linear-gradient(color-mix(in srgb, var(--signal-mint) 6%, transparent) 1px, transparent 1px),
+    color-mix(in srgb, var(--surface-strong) 86%, transparent);
+  background-size: 28px 28px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+}
+
+.intelligence-console-header,
+.intelligence-lane-title {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.intelligence-console-header h3,
+.intelligence-lane-title h3 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 1rem;
+}
+
+.intelligence-filter-composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 76%, transparent);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 78%, transparent);
+}
+
+.intelligence-filter-composer label,
+.intelligence-console-lane label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-filter-composer input {
+  min-width: 0;
+  width: 100%;
+  min-height: 38px;
+  padding: 0.5rem 0.62rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  background: var(--surface-strong);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.intelligence-console-lanes {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.intelligence-console-lane {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 76%, transparent);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 74%, transparent);
+}
+
+.intelligence-lane-title span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  border: 1px solid color-mix(in srgb, var(--arc-blue) 22%, var(--line-soft));
+  border-radius: var(--radius-pill);
+  color: var(--arc-blue);
+  background: var(--arc-blue-soft);
+  font-weight: 800;
+}
+
+.intelligence-watch-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.intelligence-signal-flow {
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+}
+
+.intelligence-saved-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 95%, transparent), color-mix(in srgb, var(--surface) 82%, transparent));
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+}
+
+.intelligence-saved-card-compact {
+  gap: 8px;
+}
+
+.intelligence-saved-card-feed {
+  border-color: color-mix(in srgb, var(--arc-blue) 18%, var(--line-soft));
+}
+
+.intelligence-alert-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), color-mix(in srgb, var(--arc-blue) 8%, var(--surface)));
+}
+
+.intelligence-queue-card {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 94%, transparent), color-mix(in srgb, var(--signal-mint) 8%, var(--surface)));
+}
+
+.intelligence-focus-card {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  border-color: color-mix(in srgb, var(--signal-mint) 20%, var(--line-soft));
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--surface-strong) 96%, transparent), color-mix(in srgb, var(--signal-mint) 7%, var(--surface))),
+    var(--surface-strong);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+}
+
+.intelligence-focus-card h3 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 0.96rem;
+}
+
+.intelligence-saved-card h3 {
+  margin: 0;
+  color: var(--ink-strong);
+  font-size: 0.96rem;
+}
+
+.intelligence-saved-card label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-saved-card input {
+  min-width: 0;
+  width: 100%;
+  min-height: 38px;
+  padding: 0.5rem 0.62rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  background: var(--surface-strong);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.intelligence-focus-card > strong,
+.intelligence-focus-card > span {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-focus-card > strong {
+  color: var(--ink-strong);
+  font-size: 1rem;
+}
+
+.intelligence-focus-card > span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.intelligence-focus-bars {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+}
+
+.intelligence-saved-list {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.intelligence-saved-card-feed .intelligence-saved-list {
+  max-height: 720px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.intelligence-saved-list > div,
+.intelligence-saved-list > button {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 82%, transparent);
+  border-radius: var(--radius-panel);
+  text-align: left;
+  background: color-mix(in srgb, var(--surface-strong) 82%, transparent);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.45) inset;
+}
+
+.intelligence-compact-list > div {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+}
+
+.intelligence-compact-list > div > strong {
+  grid-column: 1 / -1;
+}
+
+.intelligence-compact-list > div > span {
+  grid-column: 1 / -1;
+}
+
+.intelligence-compact-list > div > button {
+  min-width: 0;
+  padding-inline: 0.5rem;
+}
+
+.intelligence-compact-list > button {
+  min-height: 54px;
+}
+
+@media (min-width: 1281px) {
+  .intelligence-compact-list > div > button {
+    min-width: 74px;
+  }
+}
+
+.intelligence-saved-list strong,
+.intelligence-saved-list span,
+.intelligence-saved-list small,
+.intelligence-saved-list p {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-saved-list small {
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.intelligence-saved-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.intelligence-saved-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.intelligence-saved-detail {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--line-soft) 72%, transparent);
+  border-radius: calc(var(--radius-panel) - 6px);
+  background: color-mix(in srgb, var(--surface-strong) 72%, transparent);
+}
+
+.intelligence-saved-detail span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.intelligence-saved-detail strong {
+  min-width: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-saved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.intelligence-market-panel,
+.intelligence-research-panel {
+  grid-row: span 2;
+}
+
+.intelligence-controls {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.intelligence-controls-compact {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.intelligence-controls label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-controls input,
+.intelligence-controls select {
+  min-width: 0;
+  width: 100%;
+  min-height: 40px;
+  padding: 0.55rem 0.62rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  color: var(--ink);
+  background: var(--surface-strong);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.intelligence-market-header,
+.intelligence-market-row {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 78px 78px 86px 92px 72px 92px;
+  gap: 10px;
+  align-items: center;
+}
+
+.intelligence-market-header {
+  padding: 0 12px 8px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-market-list {
+  display: grid;
+  gap: 8px;
+}
+
+.intelligence-market-row {
+  width: 100%;
+  min-height: 66px;
+  padding: 10px 12px;
+  text-align: left;
+  box-shadow: none;
+}
+
+.intelligence-market-row-selected {
+  border-color: color-mix(in srgb, var(--arc-blue) 42%, var(--line-soft));
+  background: var(--arc-blue-soft);
+}
+
+.intelligence-market-main {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.intelligence-market-main strong {
+  color: var(--arc-blue);
+}
+
+.intelligence-market-main span,
+.intelligence-summary,
+.intelligence-question,
+.intelligence-empty {
+  overflow-wrap: anywhere;
+}
+
+.intelligence-question {
+  margin: 14px 0;
+  color: var(--ink-strong);
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.intelligence-score-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 64px;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.intelligence-score-row strong {
+  color: var(--ink);
+  text-align: right;
+}
+
+.intelligence-score-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface-muted);
+}
+
+.intelligence-score-track span,
+.intelligence-curve span {
+  display: block;
+  width: var(--score);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--arc-blue), var(--signal-mint));
+}
+
+.intelligence-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 14px 0 0;
+}
+
+.intelligence-facts div {
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line-soft);
+}
+
+.intelligence-facts dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-facts dd {
+  margin: 5px 0 0;
+  color: var(--ink-strong);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-facts-tight {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.intelligence-summary,
+.intelligence-empty {
+  margin: 14px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.intelligence-probability-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 14px 0;
+}
+
+.intelligence-agent-table {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+}
+
+.intelligence-agent-table > div,
+.intelligence-segment-list > div {
+  display: grid;
+  grid-template-columns: 104px 102px 90px 82px 170px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.intelligence-agent-table > div:first-child {
+  color: var(--muted);
+  background: var(--surface-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.intelligence-agent-table > div:last-child,
+.intelligence-segment-list > div:last-child {
+  border-bottom: 0;
+}
+
+.intelligence-segment-list {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+}
+
+.intelligence-segment-list > div {
+  grid-template-columns: minmax(150px, 1fr) 112px 130px minmax(145px, 1fr) minmax(170px, 1fr) 98px;
+}
+
+.intelligence-segment-list span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.intelligence-segment-list small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+}
+
+.intelligence-curve {
+  display: flex;
+  align-items: end;
+  gap: 6px;
+  height: 54px;
+  margin-top: 14px;
+  padding: 8px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background: var(--surface-muted);
+}
+
+.intelligence-curve span {
+  width: 100%;
+  min-width: 12px;
+  max-width: 44px;
+}
+
+.intelligence-breakdowns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.intelligence-breakdowns div {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-panel);
+  background: color-mix(in srgb, var(--surface-strong) 70%, transparent);
+}
+
+.intelligence-breakdowns h3 {
+  margin: 0 0 8px;
+  color: var(--ink-strong);
+  font-size: 0.95rem;
+  letter-spacing: 0;
+}
+
+.intelligence-breakdowns p {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 0;
+  border-top: 1px solid var(--line-soft);
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.intelligence-breakdowns p:first-of-type {
+  border-top: 0;
+}
+
+.intelligence-breakdowns strong {
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .radar-node {
     animation: node-pulse 3.8s ease-in-out infinite;
@@ -1803,7 +2614,11 @@ code {
   .reputation-grid,
   .demo-script-grid,
   .proof-grid,
-  .proof-grid-wide {
+  .proof-grid-wide,
+  .intelligence-command,
+  .intelligence-cockpit,
+  .intelligence-signal-flow,
+  .intelligence-layout {
     grid-template-columns: 1fr;
   }
 
@@ -1855,8 +2670,30 @@ code {
   .admin-demo-form,
   .proof-form,
   .proof-wallet-grid,
-  .confidence-bars {
+  .confidence-bars,
+  .intelligence-controls,
+  .intelligence-loop-strip,
+  .intelligence-overview,
+  .intelligence-probability-grid,
+  .intelligence-facts-tight {
     grid-template-columns: 1fr;
+  }
+
+  .intelligence-command-side {
+    min-width: 0;
+  }
+
+  .intelligence-market-header {
+    display: none;
+  }
+
+  .intelligence-market-row,
+  .intelligence-agent-table > div,
+  .intelligence-segment-list > div,
+  .intelligence-breakdowns,
+  .intelligence-breakdowns p {
+    grid-template-columns: 1fr;
+    justify-items: start;
   }
 }
 
@@ -1907,8 +2744,15 @@ code {
   .proof-fact-grid,
   .signal-board-meta,
   .signal-grid,
-  .market-metrics {
+  .market-metrics,
+  .intelligence-command-side,
+  .intelligence-loop-strip,
+  .intelligence-facts {
     grid-template-columns: 1fr;
+  }
+
+  .intelligence-command h1 {
+    font-size: 2.45rem;
   }
 
   .probability-row {

@@ -1,4 +1,8 @@
 import type {
+  SavedIntelligenceWorkspaceMap,
+  SavedIntelligenceWorkspaceState
+} from '@/lib/intelligence/savedState';
+import type {
   AcquireAutonomousRunInput,
   AcquireCommitClaimInput,
   AcquireOperationLockInput,
@@ -18,7 +22,11 @@ interface SupabaseStoreOptions {
   stateTable: string;
 }
 
-async function loadRemoteState(options: SupabaseStoreOptions): Promise<ArenaState | null> {
+interface PersistedRemoteState extends ArenaState {
+  savedIntelligence?: SavedIntelligenceWorkspaceMap;
+}
+
+async function loadRemoteState(options: SupabaseStoreOptions): Promise<PersistedRemoteState | null> {
   const response = await fetch(
     `${options.url}/rest/v1/${options.stateTable}?id=eq.predictarena&select=payload`,
     {
@@ -35,11 +43,14 @@ async function loadRemoteState(options: SupabaseStoreOptions): Promise<ArenaStat
     throw new Error(`supabase_load_${response.status}`);
   }
 
-  const payload = (await response.json()) as Array<{ payload: ArenaState }>;
+  const payload = (await response.json()) as Array<{ payload: PersistedRemoteState }>;
   return payload[0]?.payload ?? null;
 }
 
-async function saveRemoteState(options: SupabaseStoreOptions, state: ArenaState): Promise<void> {
+async function saveRemoteState(
+  options: SupabaseStoreOptions,
+  state: PersistedRemoteState
+): Promise<void> {
   const response = await fetch(`${options.url}/rest/v1/${options.stateTable}`, {
     method: 'POST',
     headers: {
@@ -61,23 +72,31 @@ export function createSupabaseStore(options: SupabaseStoreOptions): PersistenceS
     storagePath: '/tmp/predictarena-supabase-fallback.json'
   });
 
-  async function syncFromRemote(): Promise<ArenaState> {
+  async function fallbackSnapshot(): Promise<PersistedRemoteState> {
+    return {
+      ...(await fallback.getArenaState()),
+      savedIntelligence: await fallback.getSavedIntelligenceState()
+    };
+  }
+
+  async function syncFromRemote(): Promise<PersistedRemoteState> {
     const remoteState = await loadRemoteState(options);
     if (remoteState) {
       return remoteState;
     }
 
-    const localState = await fallback.getArenaState();
+    const localState = await fallbackSnapshot();
     await saveRemoteState(options, localState);
     return localState;
   }
 
   async function syncToRemote(): Promise<void> {
-    await saveRemoteState(options, await fallback.getArenaState());
+    await saveRemoteState(options, await fallbackSnapshot());
   }
 
-  async function hydrateFallback(remoteState: ArenaState): Promise<void> {
+  async function hydrateFallback(remoteState: PersistedRemoteState): Promise<void> {
     await fallback.replaceArenaState(remoteState);
+    await fallback.replaceSavedIntelligenceState(remoteState.savedIntelligence ?? {});
   }
 
   async function syncFromRemoteToFallback(): Promise<ArenaState> {
@@ -112,6 +131,24 @@ export function createSupabaseStore(options: SupabaseStoreOptions): PersistenceS
     async replaceArenaState(state: ArenaState) {
       await fallback.replaceArenaState(state);
       await syncToRemote();
+    },
+    async getSavedIntelligenceState() {
+      await syncFromRemoteToFallback();
+      return fallback.getSavedIntelligenceState();
+    },
+    async replaceSavedIntelligenceState(state: SavedIntelligenceWorkspaceMap) {
+      await fallback.replaceSavedIntelligenceState(state);
+      await syncToRemote();
+    },
+    async getSavedIntelligenceWorkspace(workspaceId: string) {
+      await syncFromRemoteToFallback();
+      return fallback.getSavedIntelligenceWorkspace(workspaceId);
+    },
+    async putSavedIntelligenceWorkspace(
+      workspaceId: string,
+      state: SavedIntelligenceWorkspaceState
+    ) {
+      return syncMutation(() => fallback.putSavedIntelligenceWorkspace(workspaceId, state));
     },
     async getArenaState() {
       return syncFromRemoteToFallback();

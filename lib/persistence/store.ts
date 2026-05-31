@@ -4,6 +4,10 @@ import {
   type AgentAutonomyPolicyConfig,
   type AutonomyMode
 } from '@/lib/config/env';
+import type {
+  SavedIntelligenceWorkspaceMap,
+  SavedIntelligenceWorkspaceState
+} from '@/lib/intelligence/savedState';
 import { createLocalStore } from '@/lib/persistence/localStore';
 import { createSupabaseStore } from '@/lib/persistence/supabaseStore';
 import type { AgentSignal, ParsedCryptoMarket, ResolutionSource } from '@/lib/polymarket/types';
@@ -250,6 +254,13 @@ export interface PersistenceStore {
   saveAgentRun(record: AgentRunRecord): Promise<void>;
   saveAutonomousRun(record: AutonomousRunRecord): Promise<void>;
   replaceArenaState(state: ArenaState): Promise<void>;
+  getSavedIntelligenceState(): Promise<SavedIntelligenceWorkspaceMap>;
+  replaceSavedIntelligenceState(state: SavedIntelligenceWorkspaceMap): Promise<void>;
+  getSavedIntelligenceWorkspace(workspaceId: string): Promise<SavedIntelligenceWorkspaceState>;
+  putSavedIntelligenceWorkspace(
+    workspaceId: string,
+    state: SavedIntelligenceWorkspaceState
+  ): Promise<SavedIntelligenceWorkspaceState>;
   getArenaState(): Promise<ArenaState>;
   getOperationsState(): Promise<ArenaOperationsState>;
   listSignals(): Promise<AgentSignal[]>;

@@ -1,20 +1,22 @@
 # PredictArena
 
-PredictArena is an autonomous prediction-signal and accountability layer for crypto prediction markets. It scans public Polymarket markets, converts supported BTC/ETH/SOL questions into structured market objects, runs deterministic forecasting agents, applies risk gates, and can bond eligible signals on Arc Testnet through a USDC signal-bond contract.
+PredictArena is a prediction-market intelligence workspace for public BTC/ETH/SOL crypto markets. It ranks research candidates, explains agent disagreement with market prices, compares agent reputation by segment, and evaluates paper-follow assumptions before any accountability workflow.
 
-The core design goal is simple: autonomous agents should not only publish opinions. They should leave auditable evidence, deterministic model outputs, risk decisions, transaction receipts, and measurable reputation over time.
+The accountability layer remains central: autonomous agents should not only publish opinions. They should leave auditable evidence, deterministic model outputs, risk decisions, transaction receipts, and measurable reputation over time.
 
-PredictArena is not a Polymarket trading client, an AMM, or an investment-advice product. It does not place Polymarket orders. It generates, records, and optionally bonds agent forecasts for transparent evaluation.
+PredictArena is not a Polymarket trading client, an AMM, or an investment-advice product. It does not place Polymarket orders. Scores, paper-follow results, and agent comparisons are research tools, not financial advice, transaction recommendations, or guarantees of performance.
 
 ## Key Capabilities
 
 - Autonomous market discovery from public Polymarket Gamma data, with demo snapshot fallback for resilient local operation.
+- `/intelligence` research workspace with market radar filters, saved filters, watchlists, in-app alerts, daily research queue, opportunity/risk/data-health scores, signal research, segmented reputation, and paper-follow views.
 - Deterministic BTC/ETH/SOL market parsing for expiry-above, expiry-below, touch-above, and touch-below questions.
 - Volatility and Momentum forecasting agents powered by seeded Monte Carlo GBM simulations.
 - Risk Agent gates for low edge, weak parsing confidence, extreme market prices, unsupported expiry windows, and missing price features.
 - Model and data hashes for each signal, allowing the forecast record to be inspected and reproduced from stored inputs.
 - Optional Arc Testnet USDC signal bonds for medium/high-conviction signals.
 - Run receipts, queue outcomes, budget snapshots, tx links, and public agent reputation profiles.
+- Read-only paper-follow/backtest metrics with sample size, unresolved/skipped counts, source mix, assumptions, and drawdown caveats.
 - Automatic crypto signal resolution from public candle data, plus a clearly labeled admin/demo resolution path.
 - Supabase persistence when configured, with local JSON fallback for development and demos.
 
@@ -133,6 +135,7 @@ This makes the output suitable for audit trails, receipts, leaderboard scoring, 
 
 | Route | Purpose |
 | --- | --- |
+| `/intelligence` | Primary market intelligence workspace for market radar filters, saved intelligence, signal research, segmented agent comparison, and paper-follow assumptions |
 | `/arena` | Market radar, manual Run Agents control, signal cards, and autonomy overview |
 | `/signals/[id]` | Deterministic signal detail, model inputs, hashes, risk flags, tx state, and resolution state |
 | `/leaderboard` | Agent-level generated, committed, resolved, accuracy, Brier, bonded, refunded, and slashed metrics |
@@ -145,6 +148,19 @@ This makes the output suitable for audit trails, receipts, leaderboard scoring, 
 
 | Endpoint | Method | Purpose |
 | --- | --- | --- |
+| `/api/intelligence/markets` | `GET` | Public market intelligence catalog with filters, sorting, opportunity/risk/data-health scores, and safe spread diagnostics |
+| `/api/intelligence/research` | `GET` | Public market or signal research view for implied-vs-agent probability, drivers, risk flags, and accountability status |
+| `/api/intelligence/agents` | `GET` | Public segmented agent reputation by agent, asset, condition, expiry, confidence, or edge bucket |
+| `/api/intelligence/paper-follow` | `GET` | Read-only paper-follow/backtest result with assumptions, ROI, drawdown, sample size, skipped/unresolved counts, and source mix |
+| `/api/intelligence/workspace` | `GET` | Local saved-intelligence workspace summary with saved filters, watchlist, unread count, freshness state, and daily queue preview |
+| `/api/intelligence/saved-filters` | `GET`, `POST` | List or create bounded saved market-radar filters scoped to a client-generated workspace id |
+| `/api/intelligence/saved-filters/[filterId]` | `PATCH`, `DELETE` | Update, enable/disable, or delete a saved filter after workspace ownership validation |
+| `/api/intelligence/watchlist` | `GET`, `POST` | List watched markets or add a supported public intelligence market; duplicate watches return the existing item |
+| `/api/intelligence/watchlist/[watchId]` | `DELETE` | Remove a watched market after workspace ownership validation |
+| `/api/intelligence/alerts` | `GET` | List sanitized in-app alerts for a saved-intelligence workspace |
+| `/api/intelligence/alerts/evaluate` | `POST` | Manually refresh saved filters and watchlist snapshots, update freshness, and create bounded research alerts without running agents or sending transactions |
+| `/api/intelligence/alerts/[alertId]` | `PATCH` | Mark a saved-intelligence alert read, unread, or dismissed after workspace ownership validation |
+| `/api/intelligence/daily-queue` | `GET` | Return a prioritized research queue from saved filters, watched markets, and visible alerts |
 | `/api/markets` | `GET` | Fetch and return current parseable market candidates |
 | `/api/run-agents` | `POST` | Generate and persist agent signals for current candidates |
 | `/api/cron/run-autonomous-agents` | `GET`, `POST` | Secured scheduled runner for autonomous signal generation and optional commits |
@@ -160,6 +176,10 @@ This makes the output suitable for audit trails, receipts, leaderboard scoring, 
 | `/api/demo-script` | `GET` | Read model for guided settlement demonstrations |
 
 `/api/commit-signal` is intentionally disabled as a public unauthenticated spend path. Production-like commits should flow through autonomy or proof mode so authorization, finite budgets, idempotency, and commit claims are enforced together.
+
+Saved intelligence uses a client-generated local workspace id stored in browser local storage. It is convenience state for non-sensitive research preferences, not authentication, account sync, or access control for private data. Clearing browser local storage can remove the user's handle to saved filters, watched markets, alert state, and the daily queue.
+
+Intelligence scores, saved alerts, daily queue entries, and paper-follow outputs are bounded research read models. They help prioritize review, compare historical behavior, and expose data caveats; they do not recommend trades, orders, copy-trading, Arc transactions, or guaranteed performance.
 
 ## Quickstart
 
@@ -186,7 +206,7 @@ npm run dev
 Open:
 
 ```text
-http://127.0.0.1:3000/arena
+http://127.0.0.1:3000/intelligence
 ```
 
 ### 4. Generate signals

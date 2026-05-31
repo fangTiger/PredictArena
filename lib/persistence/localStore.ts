@@ -1,6 +1,16 @@
 import { randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import {
+  createEmptySavedIntelligenceWorkspaceState,
+  normalizeSavedIntelligenceStateMap,
+  normalizeSavedIntelligenceWorkspaceState,
+  type IntelligenceAlert,
+  type SavedIntelligenceFilter,
+  type SavedIntelligenceWorkspaceMap,
+  type SavedIntelligenceWorkspaceState,
+  type WatchedMarketEntry
+} from '@/lib/intelligence/savedState';
 import type { AgentSignal } from '@/lib/polymarket/types';
 import type {
   AcquireAutonomousRunInput,
@@ -27,18 +37,31 @@ import { computeBrierScoreBps, computePaperRoiBps } from '@/lib/resolution/scori
 
 interface PersistedState extends ArenaState {
   latestScan?: LatestScanState;
+  savedIntelligence: SavedIntelligenceWorkspaceMap;
 }
 
 interface LocalStoreOptions {
   storagePath: string;
 }
 
+const WORKSPACE_MERGE_BASE_KEY = '__predictarenaMergeBase';
+
+interface WorkspaceMergeBase {
+  savedFilterIds: string[];
+  watchIds: string[];
+}
+
+type WorkspaceStateWithMergeBase = SavedIntelligenceWorkspaceState & {
+  [WORKSPACE_MERGE_BASE_KEY]?: WorkspaceMergeBase;
+};
+
 function emptyState(): PersistedState {
   return {
     markets: [],
     signals: [],
     autonomyRuns: [],
-    ops: createEmptyOperationsState()
+    ops: createEmptyOperationsState(),
+    savedIntelligence: {}
   };
 }
 
@@ -63,6 +86,9 @@ function normalizeState(state: Partial<PersistedState> | null | undefined): Pers
       claims: [...(state?.ops?.proof?.claims ?? [])]
     }
   };
+  next.savedIntelligence = normalizeSavedIntelligenceStateMap(
+    (state as Partial<PersistedState> | undefined)?.savedIntelligence
+  );
 
   return next;
 }
@@ -91,6 +117,285 @@ async function ensureParentDirectory(storagePath: string): Promise<void> {
   await fs.mkdir(path.dirname(storagePath), { recursive: true });
 }
 
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function acquireFileLock(storagePath: string): Promise<() => Promise<void>> {
+  const lockPath = `${storagePath}.lock`;
+  await ensureParentDirectory(storagePath);
+
+  for (let attempt = 0; attempt < 200; attempt += 1) {
+    try {
+      const handle = await fs.open(lockPath, 'wx');
+      await handle.writeFile(`${process.pid}:${Date.now()}`);
+      return async () => {
+        await handle.close();
+        await fs.unlink(lockPath).catch(() => undefined);
+      };
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'EEXIST') {
+        return async () => undefined;
+      }
+
+      const stat = await fs.stat(lockPath).catch(() => null);
+      if (stat && Date.now() - stat.mtimeMs > 10_000) {
+        await fs.unlink(lockPath).catch(() => undefined);
+      } else {
+        await delay(25);
+      }
+    }
+  }
+
+  return async () => undefined;
+}
+
+function timestampMs(value: string | null | undefined): number {
+  if (!value) {
+    return 0;
+  }
+
+  const parsed = new Date(value).getTime();
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function maxTimestamp(values: Array<string | null | undefined>): number {
+  return values.reduce((max, value) => Math.max(max, timestampMs(value)), 0);
+}
+
+function workspaceTimestamp(workspace: SavedIntelligenceWorkspaceState): number {
+  return Math.max(
+    maxTimestamp([workspace.lastEvaluatedAt, workspace.lastSuccessfulEvaluatedAt]),
+    ...workspace.savedFilters.map((filter) =>
+      maxTimestamp([filter.createdAt, filter.updatedAt, filter.latestEvaluation?.evaluatedAt])
+    ),
+    ...workspace.watchlist.map((watch) =>
+      maxTimestamp([watch.createdAt, watch.updatedAt, watch.latestSnapshot?.evaluatedAt])
+    ),
+    ...workspace.alerts.map((alert) => maxTimestamp([alert.createdAt, alert.updatedAt]))
+  );
+}
+
+function newerFilterSnapshot(
+  existing: SavedIntelligenceFilter | undefined,
+  incoming: SavedIntelligenceFilter
+): SavedIntelligenceFilter {
+  if (
+    existing?.latestEvaluation &&
+    timestampMs(existing.latestEvaluation.evaluatedAt) >
+      timestampMs(incoming.latestEvaluation?.evaluatedAt)
+  ) {
+    return {
+      ...incoming,
+      latestEvaluation: existing.latestEvaluation,
+      updatedAt:
+        timestampMs(existing.updatedAt) > timestampMs(incoming.updatedAt)
+          ? existing.updatedAt
+          : incoming.updatedAt
+    };
+  }
+
+  return incoming;
+}
+
+function newerWatchSnapshot(
+  existing: WatchedMarketEntry | undefined,
+  incoming: WatchedMarketEntry
+): WatchedMarketEntry {
+  if (
+    existing?.latestSnapshot &&
+    timestampMs(existing.latestSnapshot.evaluatedAt) >
+      timestampMs(incoming.latestSnapshot?.evaluatedAt)
+  ) {
+    return {
+      ...incoming,
+      supportStatus: existing.supportStatus,
+      degradedReason: existing.degradedReason,
+      latestSnapshot: existing.latestSnapshot,
+      updatedAt:
+        timestampMs(existing.updatedAt) > timestampMs(incoming.updatedAt)
+          ? existing.updatedAt
+          : incoming.updatedAt
+    };
+  }
+
+  return incoming;
+}
+
+function newerAlert(existing: IntelligenceAlert | undefined, incoming: IntelligenceAlert): IntelligenceAlert {
+  if (!existing) {
+    return incoming;
+  }
+
+  return timestampMs(existing.updatedAt) > timestampMs(incoming.updatedAt) ? existing : incoming;
+}
+
+function readWorkspaceMergeBase(input: SavedIntelligenceWorkspaceState): WorkspaceMergeBase | null {
+  const candidate = (input as WorkspaceStateWithMergeBase)[WORKSPACE_MERGE_BASE_KEY];
+  if (!candidate) {
+    return null;
+  }
+
+  if (!Array.isArray(candidate.savedFilterIds) || !Array.isArray(candidate.watchIds)) {
+    return null;
+  }
+
+  return {
+    savedFilterIds: candidate.savedFilterIds.filter((value): value is string => typeof value === 'string'),
+    watchIds: candidate.watchIds.filter((value): value is string => typeof value === 'string')
+  };
+}
+
+function stripWorkspaceMergeBase(
+  input: SavedIntelligenceWorkspaceState
+): SavedIntelligenceWorkspaceState {
+  if (!(WORKSPACE_MERGE_BASE_KEY in input)) {
+    return input;
+  }
+
+  const { [WORKSPACE_MERGE_BASE_KEY]: _ignored, ...workspace } = input as WorkspaceStateWithMergeBase;
+  return workspace;
+}
+
+function attachWorkspaceMergeBase(
+  workspace: SavedIntelligenceWorkspaceState
+): SavedIntelligenceWorkspaceState {
+  return {
+    ...workspace,
+    [WORKSPACE_MERGE_BASE_KEY]: {
+      savedFilterIds: workspace.savedFilters.map((filter) => filter.id),
+      watchIds: workspace.watchlist.map((watch) => watch.id)
+    }
+  } as WorkspaceStateWithMergeBase;
+}
+
+function orphanAlertFromDeletedSource(
+  alert: IntelligenceAlert,
+  sourceType: IntelligenceAlert['sourceType'],
+  sourceId: string,
+  fallbackSourceLabel: string
+): IntelligenceAlert {
+  if (alert.sourceType !== sourceType || alert.sourceId !== sourceId) {
+    return alert;
+  }
+
+  return {
+    ...alert,
+    orphaned: true,
+    sourceLabel: alert.sourceLabel ?? fallbackSourceLabel
+  };
+}
+
+function mergeSavedIntelligenceWorkspace(
+  workspaceId: string,
+  existingInput: SavedIntelligenceWorkspaceState | null | undefined,
+  incomingInput: SavedIntelligenceWorkspaceState
+): SavedIntelligenceWorkspaceState {
+  const incomingBase = readWorkspaceMergeBase(incomingInput);
+  const existing = normalizeSavedIntelligenceWorkspaceState(workspaceId, existingInput);
+  const incoming = normalizeSavedIntelligenceWorkspaceState(
+    workspaceId,
+    stripWorkspaceMergeBase(incomingInput)
+  );
+  const incomingTimestamp = workspaceTimestamp(incoming);
+  const existingFilters = new Map(existing.savedFilters.map((filter) => [filter.id, filter]));
+  const existingWatches = new Map(existing.watchlist.map((watch) => [watch.id, watch]));
+  const incomingFilterIds = new Set(incoming.savedFilters.map((filter) => filter.id));
+  const incomingWatchIds = new Set(incoming.watchlist.map((watch) => watch.id));
+  const mergeBaseFilterIds = new Set(incomingBase?.savedFilterIds ?? []);
+  const mergeBaseWatchIds = new Set(incomingBase?.watchIds ?? []);
+  const deletedFilterIds = new Set<string>();
+  const deletedWatchIds = new Set<string>();
+  const alertById = new Map(existing.alerts.map((alert) => [alert.id, alert]));
+
+  for (const alert of incoming.alerts) {
+    alertById.set(alert.id, newerAlert(alertById.get(alert.id), alert));
+  }
+
+  const savedFilters = incoming.savedFilters.map((filter) =>
+    newerFilterSnapshot(existingFilters.get(filter.id), filter)
+  );
+  for (const filter of existing.savedFilters) {
+    if (incomingFilterIds.has(filter.id)) {
+      continue;
+    }
+
+    if (mergeBaseFilterIds.has(filter.id)) {
+      deletedFilterIds.add(filter.id);
+      continue;
+    }
+
+    if (timestampMs(filter.updatedAt) > incomingTimestamp) {
+      savedFilters.push(filter);
+    }
+  }
+
+  const watchlist = incoming.watchlist.map((watch) => newerWatchSnapshot(existingWatches.get(watch.id), watch));
+  for (const watch of existing.watchlist) {
+    if (incomingWatchIds.has(watch.id)) {
+      continue;
+    }
+
+    if (mergeBaseWatchIds.has(watch.id)) {
+      deletedWatchIds.add(watch.id);
+      continue;
+    }
+
+    if (timestampMs(watch.updatedAt) > incomingTimestamp) {
+      watchlist.push(watch);
+    }
+  }
+
+  for (const filterId of deletedFilterIds) {
+    const existingFilter = existingFilters.get(filterId);
+    if (!existingFilter) {
+      continue;
+    }
+
+    for (const [alertId, alert] of alertById.entries()) {
+      alertById.set(
+        alertId,
+        orphanAlertFromDeletedSource(alert, 'saved_filter', filterId, existingFilter.name)
+      );
+    }
+  }
+
+  for (const watchId of deletedWatchIds) {
+    const existingWatch = existingWatches.get(watchId);
+    if (!existingWatch) {
+      continue;
+    }
+
+    for (const [alertId, alert] of alertById.entries()) {
+      alertById.set(
+        alertId,
+        orphanAlertFromDeletedSource(
+          alert,
+          'watchlist',
+          watchId,
+          existingWatch.label ?? existingWatch.question
+        )
+      );
+    }
+  }
+
+  const existingEvaluationMs = timestampMs(existing.lastEvaluatedAt);
+  const incomingEvaluationMs = timestampMs(incoming.lastEvaluatedAt);
+  const newestEvaluation = existingEvaluationMs > incomingEvaluationMs ? existing : incoming;
+
+  return normalizeSavedIntelligenceWorkspaceState(workspaceId, {
+    ...incoming,
+    savedFilters,
+    watchlist,
+    alerts: [...alertById.values()],
+    freshness: newestEvaluation.freshness,
+    lastEvaluatedAt: newestEvaluation.lastEvaluatedAt,
+    lastSuccessfulEvaluatedAt: newestEvaluation.lastSuccessfulEvaluatedAt,
+    failureReason: newestEvaluation.failureReason
+  });
+}
+
 export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
   let memoryState = emptyState();
   let queue = Promise.resolve();
@@ -108,7 +413,9 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
   async function writeState(state: PersistedState): Promise<void> {
     try {
       await ensureParentDirectory(options.storagePath);
-      await fs.writeFile(options.storagePath, JSON.stringify(state, null, 2), 'utf8');
+      const tempPath = `${options.storagePath}.${process.pid}.${randomUUID()}.tmp`;
+      await fs.writeFile(tempPath, JSON.stringify(state, null, 2), 'utf8');
+      await fs.rename(tempPath, options.storagePath);
     } catch {
       memoryState = state;
     }
@@ -116,11 +423,16 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
 
   async function mutate<T>(updater: (state: PersistedState) => T | Promise<T>): Promise<T> {
     const next = queue.then(async () => {
-      const state = await readState();
-      const result = await updater(state);
-      memoryState = state;
-      await writeState(state);
-      return result;
+      const release = await acquireFileLock(options.storagePath);
+      try {
+        const state = await readState();
+        const result = await updater(state);
+        memoryState = state;
+        await writeState(state);
+        return result;
+      } finally {
+        await release();
+      }
     });
 
     queue = next.then(
@@ -137,6 +449,28 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
     }
 
     Object.assign(target, nextState);
+  }
+
+  function toArenaState(state: PersistedState): ArenaState {
+    const arenaState: ArenaState = {
+      markets: [...state.markets],
+      signals: state.signals.map((signal) => ({
+        ...signal,
+        arcSignalRecordId: signal.arcSignalRecordId
+      })),
+      autonomyRuns: [...state.autonomyRuns],
+      ops: state.ops
+    };
+
+    if (state.latestScan) {
+      arenaState.latestScan = { ...state.latestScan };
+    }
+
+    if (state.lastRun) {
+      arenaState.lastRun = { ...state.lastRun };
+    }
+
+    return arenaState;
   }
 
   function upsertAutonomousRun(
@@ -239,12 +573,54 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
 
     async replaceArenaState(nextState: ArenaState) {
       await mutate(async (state) => {
-        replaceState(state, normalizeState(nextState));
+        replaceState(
+          state,
+          normalizeState({
+            ...nextState,
+            savedIntelligence:
+              (nextState as PersistedState).savedIntelligence ?? state.savedIntelligence
+          })
+        );
+      });
+    },
+
+    async getSavedIntelligenceState() {
+      return normalizeSavedIntelligenceStateMap((await readState()).savedIntelligence);
+    },
+
+    async replaceSavedIntelligenceState(nextState: SavedIntelligenceWorkspaceMap) {
+      await mutate(async (state) => {
+        state.savedIntelligence = normalizeSavedIntelligenceStateMap(nextState);
+      });
+    },
+
+    async getSavedIntelligenceWorkspace(workspaceId: string) {
+      const state = await readState();
+      return attachWorkspaceMergeBase(
+        normalizeSavedIntelligenceWorkspaceState(
+        workspaceId,
+        state.savedIntelligence[workspaceId] ?? createEmptySavedIntelligenceWorkspaceState()
+        )
+      );
+    },
+
+    async putSavedIntelligenceWorkspace(
+      workspaceId: string,
+      nextWorkspaceState: SavedIntelligenceWorkspaceState
+    ) {
+      return mutate(async (state) => {
+        const normalizedWorkspace = mergeSavedIntelligenceWorkspace(
+          workspaceId,
+          state.savedIntelligence[workspaceId] ?? createEmptySavedIntelligenceWorkspaceState(),
+          nextWorkspaceState
+        );
+        state.savedIntelligence[workspaceId] = normalizedWorkspace;
+        return normalizedWorkspace;
       });
     },
 
     async getArenaState() {
-      return readState();
+      return toArenaState(await readState());
     },
 
     async getOperationsState() {

@@ -12,11 +12,14 @@ export function PageShell({ children }: { children: ReactNode }) {
   return (
     <main className="arena-shell page-shell">
       <nav className="arena-topbar" aria-label="PredictArena navigation">
-        <Link href="/arena" className="brand-lockup" aria-label="PredictArena arena">
+        <Link href="/intelligence" className="brand-lockup" aria-label="PredictArena intelligence">
           <span className="brand-mark" aria-hidden="true" />
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
+          <Link href="/intelligence" className="icon-link status-live">
+            Intelligence
+          </Link>
           <Link href="/arena" className="icon-link">
             Arena
           </Link>

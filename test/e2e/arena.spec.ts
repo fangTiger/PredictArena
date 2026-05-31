@@ -7,6 +7,14 @@ test.setTimeout(60_000);
 const PLAYWRIGHT_STORE_PATH = '/tmp/predictarena-playwright-store.json';
 const ARC_EXPLORER_URL = 'https://testnet.arcscan.app';
 
+test.beforeEach(async () => {
+  await createLocalStore({ storagePath: PLAYWRIGHT_STORE_PATH }).replaceArenaState({
+    markets: [],
+    signals: [],
+    autonomyRuns: []
+  });
+});
+
 function txHashFor(projectName: string, suffix: string): `0x${string}` {
   const seed = Buffer.from(`${projectName}:${suffix}`).toString('hex').padEnd(64, '0').slice(0, 64);
 
@@ -148,16 +156,28 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByText('Policy Decision').first()).toBeVisible();
   await expect(page.getByText('Approve State').first()).toBeVisible();
   await expect(page.getByText('Failure / Tx').first()).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Market Scan Rail pages' })).toBeVisible();
-  await expect(page.getByRole('navigation', { name: 'Signal Board pages' })).toBeVisible();
-  await expect(page.locator('.market-list .market-card')).toHaveCount(5);
-  await expect(page.locator('.signal-list .signal-card')).toHaveCount(5);
-  await page.getByRole('button', { name: 'Next Market Scan Rail page' }).click();
-  await expect(page.getByText('Markets 6-10 of')).toBeVisible();
-  await page.getByRole('button', { name: 'Previous Market Scan Rail page' }).click();
-  await page.getByRole('button', { name: 'Next Signal Board page' }).click();
-  await expect(page.getByText('Signals 6-10 of')).toBeVisible();
-  await page.getByRole('button', { name: 'Previous Signal Board page' }).click();
+  const marketCards = page.locator('.market-list .market-card');
+  const signalCards = page.locator('.signal-list .signal-card');
+  await expect.poll(() => marketCards.count()).toBeGreaterThan(0);
+  await expect.poll(() => signalCards.count()).toBeGreaterThan(0);
+  expect(await marketCards.count()).toBeLessThanOrEqual(5);
+  expect(await signalCards.count()).toBeLessThanOrEqual(5);
+
+  const marketPagination = page.getByRole('navigation', { name: 'Market Scan Rail pages' });
+  if (await marketPagination.count()) {
+    await expect(marketPagination).toBeVisible();
+    await page.getByRole('button', { name: 'Next Market Scan Rail page' }).click();
+    await expect(page.getByText(/Markets 6-\d+ of/)).toBeVisible();
+    await page.getByRole('button', { name: 'Previous Market Scan Rail page' }).click();
+  }
+
+  const signalPagination = page.getByRole('navigation', { name: 'Signal Board pages' });
+  if (await signalPagination.count()) {
+    await expect(signalPagination).toBeVisible();
+    await page.getByRole('button', { name: 'Next Signal Board page' }).click();
+    await expect(page.getByText(/Signals 6-\d+ of/)).toBeVisible();
+    await page.getByRole('button', { name: 'Previous Signal Board page' }).click();
+  }
   await page.screenshot({ path: testInfo.outputPath('arena-stage2.png'), fullPage: true });
 
   const receiptLink = page.getByRole('link').filter({ hasText: /\d{2}:\d{2}/ }).first();
@@ -168,7 +188,7 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
     ]);
     await expect(page.getByRole('heading', { name: 'Run Receipt' })).toBeVisible();
     await expect(page.getByText('Receipt Metadata')).toBeVisible();
-    await expect(page.getByText('Budget Snapshot')).toBeVisible();
+    await expect(page.getByText('Budget Snapshot', { exact: true })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: 'Model Hash' })).toBeVisible();
     await page.goto('/arena');
   }

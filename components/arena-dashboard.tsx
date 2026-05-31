@@ -141,6 +141,7 @@ const copy = {
     expiry: 'Expiry',
     fallback: 'Fallback',
     forecastVisualLabel: 'PredictArena live probability radar',
+    intelligence: 'Intelligence',
     languageLabel: '中文',
     latestSignal: 'Latest signal',
     latestSweep: 'Latest sweep',
@@ -212,6 +213,7 @@ const copy = {
     expiry: '到期',
     fallback: '回退',
     forecastVisualLabel: 'PredictArena 实时概率雷达',
+    intelligence: '智能研判',
     languageLabel: 'EN',
     latestSignal: '最新信号',
     latestSweep: '最新扫描',
@@ -849,11 +851,15 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
   return (
     <main className="arena-shell" data-theme={theme}>
       <nav className="arena-topbar" aria-label="PredictArena controls">
-        <Link href="/arena" className="brand-lockup" aria-label="PredictArena arena">
+        <Link href="/intelligence" className="brand-lockup" aria-label="PredictArena intelligence">
           <span className="brand-mark" aria-hidden="true" />
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
+          <Link href="/intelligence" className="icon-link status-live">
+            <Icon name="radar" />
+            {t.intelligence}
+          </Link>
           <Link href="/leaderboard" className="icon-link">
             <Icon name="chart" />
             {t.leaderboard}
