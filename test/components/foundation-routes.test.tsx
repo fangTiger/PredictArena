@@ -1,0 +1,171 @@
+import React from 'react';
+import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen } from '@testing-library/react';
+
+const routeState = vi.hoisted(() => ({
+  pathname: '/',
+  adminCookie: null as string | null,
+  cookieSet: vi.fn(),
+  redirect: vi.fn((destination: string) => {
+    throw new Error(`REDIRECT:${destination}`);
+  })
+}));
+
+vi.mock('next/navigation', () => ({
+  usePathname: () => routeState.pathname,
+  redirect: routeState.redirect
+}));
+
+vi.mock('next/headers', () => ({
+  cookies: async () => ({
+    get(name: string) {
+      if (name === 'pa_admin' && routeState.adminCookie) {
+        return { value: routeState.adminCookie };
+      }
+
+      return undefined;
+    },
+    set(...args: unknown[]) {
+      routeState.cookieSet(...args);
+    }
+  })
+}));
+
+vi.mock('@/components/WalletConnectButton', () => ({
+  WalletConnectButton: ({ className }: { className?: string }) => (
+    <button className={className} data-testid="wallet-stub">
+      Connect Wallet
+    </button>
+  )
+}));
+
+import HomePage from '@/app/page';
+import ArenaLayout from '@/app/arena/layout';
+import AgentsLayout from '@/app/agents/layout';
+import AgentsPage from '@/app/agents/page';
+import MyLayout from '@/app/my/layout';
+import MyPage from '@/app/my/page';
+import AdminLayout from '@/app/admin/layout';
+import AdminLoginPage from '@/app/admin-login/page';
+import { submitAdminLogin } from '@/app/admin-login/actions';
+
+describe('foundation routes', () => {
+  const originalAccessToken = process.env.ADMIN_ACCESS_TOKEN;
+
+  beforeEach(() => {
+    routeState.pathname = '/';
+    routeState.adminCookie = null;
+    routeState.cookieSet.mockReset();
+    routeState.redirect.mockClear();
+    process.env.ADMIN_ACCESS_TOKEN = 'showcase-token';
+  });
+
+  afterEach(() => {
+    process.env.ADMIN_ACCESS_TOKEN = originalAccessToken;
+  });
+
+  it('renders the editorial home placeholder instead of redirecting to /arena', async () => {
+    routeState.pathname = '/';
+
+    render(await HomePage());
+
+    expect(
+      screen.getByRole('heading', {
+        level: 1,
+        name: /ai agents, betting with proof\./i
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/showcase landing placeholder/i)).toBeInTheDocument();
+    expect(routeState.redirect).not.toHaveBeenCalled();
+  });
+
+  it('wraps /arena with the glass layout shell and top nav', () => {
+    routeState.pathname = '/arena';
+
+    const { container } = render(
+      <ArenaLayout>
+        <div>arena child</div>
+      </ArenaLayout>
+    );
+
+    expect(container.firstChild).toHaveClass('glass-page');
+    expect(screen.getByText('ARENA')).toBeInTheDocument();
+    expect(screen.getByText('arena child')).toBeInTheDocument();
+  });
+
+  it('renders /agents and /my placeholder pages inside the glass layout', async () => {
+    routeState.pathname = '/agents';
+    const { rerender } = render(<AgentsLayout>{await AgentsPage()}</AgentsLayout>);
+
+    expect(screen.getByRole('heading', { level: 1, name: /agent dossiers/i })).toBeInTheDocument();
+    expect(screen.getByText(/glass neon placeholder/i)).toBeInTheDocument();
+
+    routeState.pathname = '/my';
+    rerender(<MyLayout>{await MyPage()}</MyLayout>);
+
+    expect(screen.getByRole('heading', { level: 1, name: /wallet-bound record/i })).toBeInTheDocument();
+    expect(screen.getByText(/personal dashboard placeholder/i)).toBeInTheDocument();
+  });
+
+  it('redirects unauthenticated /admin requests to /admin/login', async () => {
+    await expect(
+      AdminLayout({
+        children: <div>secret room</div>
+      })
+    ).rejects.toThrow('REDIRECT:/admin/login');
+
+    expect(routeState.redirect).toHaveBeenCalledWith('/admin/login');
+  });
+
+  it('renders admin children when the pa_admin cookie matches the configured token', async () => {
+    routeState.adminCookie = 'showcase-token';
+
+    render(
+      await AdminLayout({
+        children: <div>secret room</div>
+      })
+    );
+
+    expect(screen.getByText('secret room')).toBeInTheDocument();
+    expect(routeState.redirect).not.toHaveBeenCalled();
+  });
+
+  it('shows an inline invalid-token error on the admin login page', async () => {
+    render(
+      await AdminLoginPage({
+        searchParams: Promise.resolve({ error: '1' })
+      })
+    );
+
+    expect(screen.getByText('Invalid token')).toBeInTheDocument();
+    expect(screen.getByLabelText(/access token/i)).toBeInTheDocument();
+  });
+
+  it('sets the pa_admin cookie and redirects to /admin on successful admin login', async () => {
+    const formData = new FormData();
+    formData.set('token', 'showcase-token');
+
+    await expect(submitAdminLogin(formData)).rejects.toThrow('REDIRECT:/admin');
+
+    expect(routeState.cookieSet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'pa_admin',
+        value: 'showcase-token',
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 43_200
+      })
+    );
+  });
+
+  it('redirects back to /admin/login?error=1 and does not set cookie on invalid token', async () => {
+    const formData = new FormData();
+    formData.set('token', 'wrong-token');
+
+    await expect(submitAdminLogin(formData)).rejects.toThrow(
+      'REDIRECT:/admin/login?error=1'
+    );
+
+    expect(routeState.cookieSet).not.toHaveBeenCalled();
+  });
+});

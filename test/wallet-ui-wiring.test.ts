@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();
 
 describe('wallet-funded follow UI wiring', () => {
-  it('wires the minimal wallet follow controls into arena and signal detail pages', async () => {
+  it('keeps the editorial home stub while preserving wallet-follow wiring elsewhere', async () => {
     const [rootPage, arenaDashboard, pageShell, signalDetail, walletButton, displayControls] = await Promise.all([
       fs.readFile(path.join(root, 'app/page.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8'),
@@ -15,7 +15,10 @@ describe('wallet-funded follow UI wiring', () => {
       fs.readFile(path.join(root, 'components/DisplayControls.tsx'), 'utf8')
     ]);
 
-    expect(rootPage).toContain("redirect('/arena')");
+    expect(rootPage).toContain('TopNav');
+    expect(rootPage).toContain('variant="editorial"');
+    expect(rootPage).toContain('AI agents, <em className="editorial-accent">betting with proof.</em>');
+    expect(rootPage).not.toContain("redirect('/arena')");
     expect(arenaDashboard).toContain('getWalletFollowStep');
     expect(arenaDashboard).toContain('selectWalletFundableSignal');
     expect(arenaDashboard).toContain('runAgentsAndFollowSignal');

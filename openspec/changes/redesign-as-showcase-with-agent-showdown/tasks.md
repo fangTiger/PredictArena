@@ -6,18 +6,18 @@
 
 ## 0. Prerequisite (NOT executed by this change)
 
-- [ ] 0.1 Archive `openspec/changes/add-wallet-funded-follows/` to `archive/2026-06-03-add-wallet-funded-follows/` and merge its delta into `specs/predictarena/` + `specs/predictarena-ui/`. _Executor: Claude_
-- [ ] 0.2 Confirm clean `openspec validate --strict --no-interactive` after archival. _Executor: Claude_
+- [x] 0.1 Archive `openspec/changes/add-wallet-funded-follows/` to `archive/2026-06-03-add-wallet-funded-follows/` and merge its delta into `specs/predictarena/` + `specs/predictarena-ui/`. _Executor: Claude_
+- [x] 0.2 Confirm clean `openspec validate --strict --no-interactive` after archival. _Executor: Claude_
 
 ## 1. Foundation Skeleton (Plan Chunk 1)
 
-- [ ] 1.1 Add design tokens (Editorial + Glass Neon + Admin) to `app/globals.css`. _Executor: Codex_
-- [ ] 1.2 Create shared `<TopNav />` client component using `usePathname()`. _Executor: Codex_
-- [ ] 1.3 Replace `app/page.tsx` redirect with Editorial placeholder home. _Executor: Codex_
-- [ ] 1.4 Wrap `/arena` in glass-neon layout (`app/arena/layout.tsx`). _Executor: Codex_
-- [ ] 1.5 Scaffold `/agents` and `/my` placeholder pages. _Executor: Codex_
-- [ ] 1.6 Create `lib/config/admin-auth.ts` (cookie + env check). _Executor: Codex_
-- [ ] 1.7 Scaffold `/admin` route tree with auth guard, AdminShell sidebar, and `/admin/login` form via `next.config.ts` rewrite. _Executor: Codex_
+- [x] 1.1 Add design tokens (Editorial + Glass Neon + Admin) to `app/globals.css`. _Executor: Codex_
+- [x] 1.2 Create shared `<TopNav />` client component using `usePathname()`. _Executor: Codex_
+- [x] 1.3 Replace `app/page.tsx` redirect with Editorial placeholder home. _Executor: Codex_
+- [x] 1.4 Wrap `/arena` in glass-neon layout (`app/arena/layout.tsx`). _Executor: Codex_
+- [x] 1.5 Scaffold `/agents` and `/my` placeholder pages. _Executor: Codex_
+- [x] 1.6 Create `lib/config/admin-auth.ts` (cookie + env check). _Executor: Codex_
+- [x] 1.7 Scaffold `/admin` route tree with auth guard, AdminShell sidebar, and `/admin/login` form via `next.config.ts` rewrite. _Executor: Codex_
 
 ## 2. Legacy Cleanup (Plan Chunk 2)
 
