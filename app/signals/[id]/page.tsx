@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import { AgentBadge } from '@/components/AgentBadge';
 import { HeroPill, NavPill, PageHero, PageShell, SectionLabel } from '@/components/PageShell';
 import { TxLink } from '@/components/TxLink';
-import { AdminDemoSettlement } from '@/app/signals/[id]/AdminDemoSettlement';
 import { fetchClobSpreadDiagnostic } from '@/lib/polymarket/orderbook';
 import { getRuntimeStore } from '@/lib/persistence/store';
 import { formatBps, formatMicroUsdc, formatUsd } from '@/lib/utils/format';
@@ -26,6 +25,10 @@ function formatOptionalBps(value: number | null): string {
   return value === null ? 'Unavailable' : formatBps(value);
 }
 
+function shortAddress(address: string): string {
+  return `${address.slice(0, 8)}...${address.slice(-6)}`;
+}
+
 export default async function SignalDetailPage({
   params
 }: {
@@ -40,6 +43,7 @@ export default async function SignalDetailPage({
   }
 
   const state = await store.getArenaState();
+  const walletFollows = await store.listWalletFollows(signal.id);
   const market = state.markets.find((entry) => entry.id === signal.marketId);
   const clobDiagnostic = await fetchClobSpreadDiagnostic(market?.clobTokenIds ?? []);
   const explanation = buildSignalExplanation(signal);
@@ -185,7 +189,30 @@ export default async function SignalDetailPage({
         </div>
       </section>
 
-      <AdminDemoSettlement signalId={signal.id} />
+      <section className="detail-card detail-card-large">
+        <div>
+          <p className="panel-kicker">Self-funded receipts</p>
+          <h2 className="detail-title">Wallet Follows</h2>
+        </div>
+        {walletFollows.length > 0 ? (
+          <div className="queue-list">
+            {walletFollows.slice(0, 5).map((follow) => (
+              <article key={follow.id} className="queue-row">
+                <span>{shortAddress(follow.walletAddress)}</span>
+                <span>{formatMicroUsdc(follow.stakeMicroUsdc)}</span>
+                <span>{follow.followedAt.slice(0, 16).replace('T', ' ')}</span>
+                <span>
+                  <TxLink hash={follow.txHash} />
+                </span>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="detail-copy">
+            No wallet-funded follows yet. Use the arena signal card to follow this signal with a browser wallet.
+          </p>
+        )}
+      </section>
 
       <section className="detail-layout">
         <article className="detail-card detail-card-large">

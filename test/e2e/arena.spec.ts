@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { createLocalStore } from '../../lib/persistence/localStore';
 import type { AgentSignal } from '../../lib/polymarket/types';
 
@@ -102,22 +102,29 @@ async function seedCommittedLifecycle(projectName: string): Promise<{
   };
 }
 
+async function runAgentsViaApi(page: Page) {
+  const response = await page.request.post('/api/run-agents', { data: { limit: 20 } });
+  expect(response.ok()).toBe(true);
+  await page.reload({ waitUntil: 'domcontentloaded' });
+}
+
 test('arena, signal detail, and leaderboard load without manual inputs', async ({ page }, testInfo) => {
   await page.goto('/arena');
 
   await expect(page.getByRole('heading', { name: 'PredictArena' })).toBeVisible();
   await expect(page.getByText('Arc Forecast Arena')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Autonomy Panel' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Agent Control Room' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Agent Run Context' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Wallet Funding' })).toBeVisible();
   await expect(page.getByRole('img', { name: /probability radar/i })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Re-Scan Markets' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Run Agents' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Commit Eligible Signals' })).toBeVisible();
-  await expect(page.getByText('Mode by Agent')).toBeVisible();
-  await expect(page.getByText('Budget Utilization')).toBeVisible();
-  await expect(page.getByText('Recent Autonomous Runs')).toBeVisible();
-  await expect(page.getByText('Commit Availability')).toBeVisible();
-  await expect(page.getByText('Wallet Readiness')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Connect Wallet' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Commit Eligible Signals' })).toHaveCount(0);
+  await expect(page.getByText('Agent Modes')).toBeVisible();
+  await expect(page.getByText('Recent Runs')).toBeVisible();
+  await expect(page.getByText('Current Wallet')).toBeVisible();
+  await expect(page.getByText('USDC Balance')).toBeVisible();
+  await expect(page.getByText('Allowance')).toBeVisible();
   await expect(page.getByText('Latest Arc Tx')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   await page.getByRole('button', { name: 'Toggle theme' }).click();
@@ -141,11 +148,9 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByPlaceholder(/question/i)).toHaveCount(0);
   await expect(page.getByRole('button', { name: /create market/i })).toHaveCount(0);
 
-  const runAgentsButton = page.getByRole('button', { name: 'Run Agents' });
-  await runAgentsButton.click();
-  await expect(runAgentsButton).toBeEnabled({ timeout: 30_000 });
+  await runAgentsViaApi(page);
   await expect(page.getByRole('heading', { name: 'Signal Board' })).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Commit Queue' })).toBeVisible();
+  await expect(page.getByText('Wallet Follows').first()).toBeVisible();
   await expect(page.getByRole('link', { name: 'Open Signal Detail' }).first()).toBeVisible();
   await expect(page.getByText('Agent Probability').first()).toBeVisible();
   await expect(page.getByText('Market Price').first()).toBeVisible();
@@ -153,9 +158,6 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByText('Capped Kelly').first()).toBeVisible();
   await expect(page.getByText('Risk Flags').first()).toBeVisible();
   await expect(page.getByText('Status').first()).toBeVisible();
-  await expect(page.getByText('Policy Decision').first()).toBeVisible();
-  await expect(page.getByText('Approve State').first()).toBeVisible();
-  await expect(page.getByText('Failure / Tx').first()).toBeVisible();
   const marketCards = page.locator('.market-list .market-card');
   const signalCards = page.locator('.signal-list .signal-card');
   await expect.poll(() => marketCards.count()).toBeGreaterThan(0);
@@ -211,12 +213,8 @@ test('arena, signal detail, and leaderboard load without manual inputs', async (
   await expect(page.getByText('Signal ID')).toBeVisible();
   await expect(page.getByText('Model Hash')).toBeVisible();
   await expect(page.getByText('Data Hash')).toBeVisible();
-  const adminSettlementToggle = page.getByRole('button', { name: 'Admin / Demo Settlement' });
-  await expect(adminSettlementToggle).toBeVisible();
-  await adminSettlementToggle.click();
-  await expect(page.getByLabel('Admin Token')).toBeVisible();
-  await expect(page.getByLabel('Settlement Outcome')).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Submit Demo Settlement' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Admin / Demo Settlement' })).toHaveCount(0);
+  await expect(page.getByLabel('Admin Token')).toHaveCount(0);
   await expect(page.locator('.page-hero')).toHaveCSS('border-radius', '8px');
   await expect(page.locator('.detail-layout')).toBeVisible();
 
@@ -280,16 +278,14 @@ test('agent lifecycle exposes Arc transaction links from commit to resolution', 
   page
 }, testInfo) => {
   await page.goto('/arena');
-  const runAgentsButton = page.getByRole('button', { name: 'Run Agents' });
-  await runAgentsButton.click();
-  await expect(runAgentsButton).toBeEnabled({ timeout: 30_000 });
+  await runAgentsViaApi(page);
 
   const lifecycle = await seedCommittedLifecycle(testInfo.project.name);
   const commitTxUrl = `${ARC_EXPLORER_URL}/tx/${lifecycle.commitTxHash}`;
   const resolveTxUrl = `${ARC_EXPLORER_URL}/tx/${lifecycle.resolveTxHash}`;
 
   await page.goto('/arena', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByRole('heading', { name: 'Commit Queue' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Signal Board' })).toBeVisible();
   await expect(page.getByText(lifecycle.signalId).first()).toBeVisible();
   await expect(
     page.getByRole('link', { name: new RegExp(`View transaction ${lifecycle.commitTxHash}`, 'i') }).first()

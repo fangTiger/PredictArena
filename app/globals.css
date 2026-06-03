@@ -218,6 +218,29 @@ code {
 .topbar-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
+  flex: 1;
+}
+
+.topbar-nav,
+.topbar-tools,
+.topbar-wallet-slot,
+.wallet-connect-cluster {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.topbar-nav,
+.topbar-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.topbar-wallet-slot {
+  margin-left: clamp(12px, 2.5vw, 34px);
+  padding-left: 12px;
+  border-left: 1px solid var(--line-soft);
 }
 
 .icon-link,
@@ -232,6 +255,56 @@ code {
 
 .icon-button {
   min-width: 82px;
+}
+
+.wallet-connect-button,
+.wallet-disconnect-button {
+  min-height: 36px;
+  border-radius: var(--radius-panel);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.wallet-connect-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-width: 148px;
+  padding: 0.5rem 0.82rem;
+  border: 1px solid color-mix(in srgb, #f59e0b 44%, var(--line-soft));
+  color: #251404;
+  background:
+    linear-gradient(135deg, rgba(255, 214, 102, 0.96), rgba(245, 158, 11, 0.86)),
+    var(--surface-strong);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.82) inset,
+    0 10px 24px rgba(245, 158, 11, 0.18);
+}
+
+.wallet-connect-button-connected {
+  border-color: color-mix(in srgb, var(--signal-mint) 54%, var(--line-soft));
+  color: #042117;
+  background:
+    linear-gradient(135deg, rgba(94, 234, 212, 0.88), rgba(34, 197, 94, 0.68)),
+    var(--surface-strong);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.76) inset,
+    0 10px 22px rgba(20, 184, 166, 0.16);
+}
+
+.wallet-connect-button-warning {
+  border-color: color-mix(in srgb, #f97316 58%, var(--line-soft));
+  background:
+    linear-gradient(135deg, rgba(253, 186, 116, 0.96), rgba(249, 115, 22, 0.82)),
+    var(--surface-strong);
+}
+
+.wallet-disconnect-button {
+  padding: 0.5rem 0.62rem;
+  border: 1px solid color-mix(in srgb, #f97316 24%, var(--line-soft));
+  color: color-mix(in srgb, #7c2d12 82%, var(--ink));
+  background: color-mix(in srgb, #fff7ed 72%, var(--surface-strong));
 }
 
 .mini-icon {
@@ -2713,6 +2786,26 @@ code {
     justify-content: flex-start;
   }
 
+  .topbar-nav,
+  .topbar-tools {
+    justify-content: flex-start;
+  }
+
+  .topbar-wallet-slot {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .wallet-connect-cluster {
+    width: 100%;
+  }
+
+  .wallet-connect-button {
+    flex: 1;
+  }
+
   .command-deck,
   .panel {
     padding: 14px;
@@ -2796,3 +2889,70 @@ code {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* =========================================================
+   Redesign 2026-06-03 — Editorial + Glass Neon + Admin tokens
+   ========================================================= */
+
+:root {
+  /* Editorial (homepage) tokens */
+  --editorial-bg:          #0c0c0c;
+  --editorial-fg:          #ededed;
+  --editorial-mute:        #888888;
+  --editorial-rule:        rgba(255, 255, 255, 0.06);
+  --editorial-accent:      #ff5e3a;
+  --editorial-h1-size:     64px;
+  --editorial-h1-weight:   800;
+  --editorial-h1-tracking: -0.5px;
+
+  /* Glass Neon (inner pages) tokens */
+  --glass-bg:              #0a0a14;
+  --glass-tint-purple:     124, 92, 255;
+  --glass-tint-cyan:       0, 209, 255;
+  --glass-card-bg:         rgba(255, 255, 255, 0.06);
+  --glass-card-border:     rgba(255, 255, 255, 0.12);
+  --glass-card-radius:     16px;
+  --glass-blur:            blur(20px);
+  --glass-fg:              #ffffff;
+  --glass-fg-mute:         rgba(255, 255, 255, 0.5);
+
+  /* Admin (greyscale, density-first) tokens */
+  --admin-bg:              #1a1a1a;
+  --admin-fg:              #d4d4d4;
+  --admin-rule:            #2a2a2a;
+  --admin-accent:          #7a7a7a;
+
+  /* Shared semantic colors */
+  --color-yes:             #00d1ff;
+  --color-no:              #ff5e6e;
+  --color-success:         #00ffaa;
+  --color-warning:         #ffd75c;
+  --color-error:           #ff5e6e;
+}
+
+/* Utility classes consumed by Editorial pages */
+.editorial-page  { background: var(--editorial-bg); color: var(--editorial-fg); }
+.editorial-h1    { font-size: var(--editorial-h1-size); font-weight: var(--editorial-h1-weight); letter-spacing: var(--editorial-h1-tracking); line-height: 1.02; }
+.editorial-accent { color: var(--editorial-accent); }
+.editorial-rule  { border-color: var(--editorial-rule); }
+
+/* Utility classes consumed by Glass Neon pages */
+.glass-page {
+  background:
+    radial-gradient(ellipse at 90% 10%, rgba(var(--glass-tint-purple), 0.25), transparent 50%),
+    radial-gradient(ellipse at 10% 90%, rgba(var(--glass-tint-cyan), 0.18), transparent 50%),
+    var(--glass-bg);
+  color: var(--glass-fg);
+  min-height: 100vh;
+}
+.glass-card {
+  background: var(--glass-card-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-card-border);
+  border-radius: var(--glass-card-radius);
+}
+
+/* Utility classes consumed by Admin */
+.admin-page  { background: var(--admin-bg); color: var(--admin-fg); }
+.admin-rule  { border-color: var(--admin-rule); }

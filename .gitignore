@@ -20,3 +20,4 @@ data/runtime/
 .idea/
 AGENTS.md
 .graphifyignore
+.superpowers/

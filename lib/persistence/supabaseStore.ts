@@ -12,7 +12,8 @@ import type {
   AutonomousRunRecord,
   LeaderboardEntry,
   MarketScanRecord,
-  PersistenceStore
+  PersistenceStore,
+  WalletFollowRecord
 } from '@/lib/persistence/store';
 import { createLocalStore } from '@/lib/persistence/localStore';
 
@@ -162,6 +163,13 @@ export function createSupabaseStore(options: SupabaseStoreOptions): PersistenceS
     },
     async getSignal(signalId: string) {
       return (await this.listSignals()).find((signal) => signal.id === signalId);
+    },
+    async saveWalletFollow(record: WalletFollowRecord) {
+      return syncMutation(() => fallback.saveWalletFollow(record));
+    },
+    async listWalletFollows(signalId?: string) {
+      await syncFromRemoteToFallback();
+      return fallback.listWalletFollows(signalId);
     },
     async markSignalCommitted(signalId: string, txHash: `0x${string}`, signalRecordId?: number | null) {
       return syncMutation(() => fallback.markSignalCommitted(signalId, txHash, signalRecordId));

@@ -2,13 +2,31 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState, useTransition } from 'react';
+import { DisplayControls } from '@/components/DisplayControls';
 import { TxLink } from '@/components/TxLink';
+import { WalletConnectButton } from '@/components/WalletConnectButton';
+import {
+  createBrowserWalletClients,
+  getBrowserWalletProvider,
+  getWalletFollowStep,
+  readBrowserWalletChainId,
+  readBrowserWalletSession,
+  requestBrowserWalletAddress,
+  selectWalletFundableSignal,
+  subscribeBrowserWalletSessionChange,
+  switchBrowserWalletToArc,
+  writeBrowserWalletSession,
+  type BrowserWalletSession
+} from '@/lib/arc/browserWallet';
+import { commitArenaSignal } from '@/lib/arc/signalBondArena';
+import { ensureUsdcAllowance, readUsdcAllowance, readUsdcBalance } from '@/lib/arc/usdc';
+import { ARC_TESTNET_CHAIN_ID } from '@/lib/config/constants';
 import type { AgentSignal, ParsedCryptoMarket } from '@/lib/polymarket/types';
 import type {
   ArenaMetrics,
   ArenaState,
   AutonomousRunRecord,
-  AutonomyQueueEntry
+  WalletFollowRecord
 } from '@/lib/persistence/store';
 import { isSignalEligibleForCommit } from '@/lib/utils/signal';
 
@@ -28,10 +46,9 @@ interface RunAgentsResponse extends MarketsResponse {
   metrics: ArenaMetrics;
 }
 
-interface CommitResponse {
+interface WalletFollowResponse {
+  follow?: WalletFollowRecord;
   reason?: string;
-  signal?: AgentSignal;
-  txHash?: `0x${string}`;
 }
 
 interface AgentPolicyView {
@@ -61,6 +78,10 @@ interface ArcControlRoomView {
   wallets: Record<'volatility' | 'momentum', ArcWalletReadinessView>;
 }
 
+type WalletReadyControlRoomView = ArcControlRoomView & {
+  arenaAddress: `0x${string}`;
+};
+
 interface AutonomyResponse {
   policies: Record<'volatility' | 'momentum', AgentPolicyView>;
   metrics: ArenaMetrics;
@@ -75,9 +96,9 @@ interface AutonomyViewState {
   error: string | null;
 }
 
-type CommitResult =
+type WalletFollowResult =
   | {
-      status: 'committed';
+      status: 'followed';
       signalId: string;
       txHash: `0x${string}`;
     }
@@ -90,6 +111,8 @@ type CommitResult =
 type Language = 'en' | 'zh';
 type ThemeMode = 'light' | 'dark';
 type ScanSource = 'live' | 'demo_snapshot' | 'idle';
+
+type WalletActionState = 'idle' | 'connecting' | 'switching' | 'approving' | 'submitting' | 'confirming';
 
 const MARKET_PAGE_SIZE = 5;
 const SIGNAL_PAGE_SIZE = 5;
@@ -117,10 +140,10 @@ const copy = {
     agent: 'Agent',
     agentOutput: 'Agent Output',
     agentProbability: 'Agent Probability',
-    arcCommit: 'Arc commit',
+    arcCommit: 'Wallet follow',
     arcCommitLane: 'Arc Commit Lane',
     arcLane: 'Arc lane',
-    arcMode: 'Agent custody',
+    arcMode: 'User wallet',
     arcSettlement: 'Settlement Rail',
     arcStatus: 'Arc status',
     assetStrike: 'Asset / Strike',
@@ -131,7 +154,6 @@ const copy = {
     commitArmed: 'armed',
     commitBlocked: 'Commit blocked',
     commitConfirmed: 'Commit confirmed',
-    commitEligible: 'Commit Eligible Signals',
     commitGuarded: 'guarded',
     commitToArc: 'Commit to Arc',
     confidence: 'Confidence',
@@ -180,7 +202,7 @@ const copy = {
     status: 'Status',
     strike: 'Strike',
     subtitle:
-      'Autonomous agents scan crypto prediction markets, price quantified edge, and commit USDC signal bonds on Arc.',
+      'Agents scan crypto prediction markets, price quantified edge, and let your connected wallet self-fund signal follows on Arc.',
     themeLabel: 'Night',
     usdcBonded: 'USDC Bonded',
     yesPrice: 'YES Price'
@@ -189,10 +211,10 @@ const copy = {
     agent: '智能体',
     agentOutput: '智能体输出',
     agentProbability: '智能体概率',
-    arcCommit: 'Arc 提交',
+    arcCommit: '钱包跟随',
     arcCommitLane: 'Arc 提交通道',
     arcLane: 'Arc 通道',
-    arcMode: '智能体托管',
+    arcMode: '用户钱包',
     arcSettlement: '结算轨道',
     arcStatus: 'Arc 状态',
     assetStrike: '资产 / 阈值',
@@ -203,7 +225,6 @@ const copy = {
     commitArmed: '就绪',
     commitBlocked: '提交受阻',
     commitConfirmed: '提交确认',
-    commitEligible: '提交合格信号',
     commitGuarded: '守卫中',
     commitToArc: '提交到 Arc',
     confidence: '置信度',
@@ -251,7 +272,7 @@ const copy = {
     source: '来源',
     status: '状态',
     strike: '阈值',
-    subtitle: '自主智能体扫描加密预测市场、计算量化优势，并在 Arc 上提交 USDC 信号债券。',
+    subtitle: '智能体扫描加密预测市场、计算量化优势，并由你连接的钱包在 Arc 上自费跟随信号。',
     themeLabel: '夜间',
     usdcBonded: '已绑定 USDC',
     yesPrice: 'YES 价格'
@@ -391,6 +412,10 @@ function truncateAddress(address: string | null | undefined) {
   return `${address.slice(0, 8)}...${address.slice(-6)}`;
 }
 
+function isSameAddress(left: string | null | undefined, right: string | null | undefined) {
+  return Boolean(left && right && left.toLowerCase() === right.toLowerCase());
+}
+
 function formatTimestampLabel(value?: string) {
   if (!value) {
     return 'pending';
@@ -512,41 +537,6 @@ function findAssetMarket(markets: ParsedCryptoMarket[], asset: ParsedCryptoMarke
   return markets.find((market) => market.asset === asset);
 }
 
-function buildDerivedQueue(signals: AgentSignal[], lastCommitResult: CommitResult | null): AutonomyQueueEntry[] {
-  return signals.slice(0, 8).map((signal) => {
-    const committed = Boolean(signal.arcTxHash);
-    const eligible = isSignalEligibleForCommit(signal);
-    const failed =
-      lastCommitResult?.status === 'disabled' && lastCommitResult.signalId === signal.id
-        ? lastCommitResult.reason
-        : null;
-
-    return {
-      signalId: signal.id,
-      agentName: signal.agentName,
-      status: committed ? 'committed' : failed ? 'commit_failed' : eligible ? 'dry_run_eligible' : 'not_eligible',
-      reason: failed ?? (eligible ? null : signal.side === 'AVOID' ? 'signal_side_avoid' : 'below_policy_threshold'),
-      txHash: signal.arcTxHash,
-      edgeBps: signal.edgeBps,
-      stakeMicroUsdc: signal.stakeMicroUsdc
-    };
-  });
-}
-
-function queueStatusLabel(status: AutonomyQueueEntry['status']) {
-  const labels: Record<AutonomyQueueEntry['status'], string> = {
-    not_eligible: 'Not eligible',
-    mode_off: 'Mode off',
-    policy_blocked: 'Policy blocked',
-    claim_blocked: 'Claim blocked',
-    dry_run_eligible: 'Dry-run eligible',
-    committed: 'Committed',
-    commit_failed: 'Commit failed'
-  };
-
-  return labels[status];
-}
-
 function pageCount(totalItems: number, pageSize: number): number {
   return Math.max(1, Math.ceil(totalItems / pageSize));
 }
@@ -617,7 +607,17 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     controlRoom: null,
     error: null
   });
-  const [lastCommitResult, setLastCommitResult] = useState<CommitResult | null>(null);
+  const [lastWalletFollowResult, setLastWalletFollowResult] = useState<WalletFollowResult | null>(null);
+  const [walletFollows, setWalletFollows] = useState<WalletFollowRecord[]>(
+    initialState.walletFollows ?? []
+  );
+  const [hasWalletProvider, setHasWalletProvider] = useState(false);
+  const [walletAddress, setWalletAddress] = useState<`0x${string}` | null>(null);
+  const [walletChainId, setWalletChainId] = useState<number | null>(null);
+  const [walletBalance, setWalletBalance] = useState<bigint | null>(null);
+  const [walletAllowance, setWalletAllowance] = useState<bigint | null>(null);
+  const [walletActionState, setWalletActionState] = useState<WalletActionState>('idle');
+  const [walletMessage, setWalletMessage] = useState('Connect wallet to self-fund follows.');
   const [language, setLanguage] = useState<Language>('en');
   const [marketPage, setMarketPage] = useState(1);
   const [signalPage, setSignalPage] = useState(1);
@@ -636,28 +636,76 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
   }, [language, theme]);
 
-  const refreshAutonomy = useCallback(async () => {
-    try {
-      const response = await fetch('/api/autonomy', { headers: { accept: 'application/json' } });
-      const payload = (await response.json()) as AutonomyResponse;
-      if (!response.ok) {
-        throw new Error('Autonomy state unavailable.');
+  useEffect(() => {
+    setHasWalletProvider(Boolean(getBrowserWalletProvider()));
+    const storedSession = readBrowserWalletSession();
+    if (storedSession) {
+      setWalletAddress(storedSession.walletAddress);
+      setWalletChainId(storedSession.chainId);
+      setWalletMessage(`Wallet ${truncateAddress(storedSession.walletAddress)} connected.`);
+    }
+
+    return subscribeBrowserWalletSessionChange((session) => {
+      if (!session) {
+        setWalletAddress(null);
+        setWalletChainId(null);
+        setWalletBalance(null);
+        setWalletAllowance(null);
+        setWalletMessage('Connect wallet to self-fund follows.');
+        return;
       }
 
-      setAutonomy({
-        policies: payload.policies,
-        runs: payload.runs ?? [],
-        controlRoom: payload.controlRoom,
-        error: null
-      });
-      setMetrics(payload.metrics);
+      setWalletAddress(session.walletAddress);
+      setWalletChainId(session.chainId);
+      setWalletMessage(`Wallet ${truncateAddress(session.walletAddress)} connected.`);
+    });
+  }, []);
+
+  function handleWalletConnected(session: BrowserWalletSession) {
+    setWalletAddress(session.walletAddress);
+    setWalletChainId(session.chainId);
+    setWalletMessage(`Wallet ${truncateAddress(session.walletAddress)} connected.`);
+    void refreshWalletReadiness(session.walletAddress);
+  }
+
+  function handleWalletDisconnected() {
+    setWalletAddress(null);
+    setWalletChainId(null);
+    setWalletBalance(null);
+    setWalletAllowance(null);
+    setWalletMessage('Connect wallet to self-fund follows.');
+  }
+
+  const applyAutonomyPayload = useCallback((payload: AutonomyResponse) => {
+    setAutonomy({
+      policies: payload.policies,
+      runs: payload.runs ?? [],
+      controlRoom: payload.controlRoom,
+      error: null
+    });
+    setMetrics(payload.metrics);
+  }, []);
+
+  const loadAutonomyPayload = useCallback(async () => {
+    const response = await fetch('/api/autonomy', { headers: { accept: 'application/json' } });
+    const payload = (await response.json()) as AutonomyResponse;
+    if (!response.ok) {
+      throw new Error('Autonomy state unavailable.');
+    }
+
+    return payload;
+  }, []);
+
+  const refreshAutonomy = useCallback(async () => {
+    try {
+      applyAutonomyPayload(await loadAutonomyPayload());
     } catch (error) {
       setAutonomy((current) => ({
         ...current,
         error: error instanceof Error ? error.message : 'Autonomy state unavailable.'
       }));
     }
-  }, []);
+  }, [applyAutonomyPayload, loadAutonomyPayload]);
 
   useEffect(() => {
     void refreshAutonomy();
@@ -674,6 +722,90 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
       clampPage(currentPage, arena.signals.length, SIGNAL_PAGE_SIZE)
     );
   }, [arena.signals.length]);
+
+  const getWalletControlRoom = useCallback(async (): Promise<WalletReadyControlRoomView> => {
+    if (autonomy.controlRoom?.arenaAddress) {
+      return {
+        ...autonomy.controlRoom,
+        arenaAddress: autonomy.controlRoom.arenaAddress
+      };
+    }
+
+    const payload = await loadAutonomyPayload();
+    applyAutonomyPayload(payload);
+    if (!payload.controlRoom?.arenaAddress) {
+      throw new Error('Signal bond contract is not configured.');
+    }
+
+    return {
+      ...payload.controlRoom,
+      arenaAddress: payload.controlRoom.arenaAddress
+    };
+  }, [applyAutonomyPayload, autonomy.controlRoom, loadAutonomyPayload]);
+
+  const refreshWalletReadiness = useCallback(async (address = walletAddress) => {
+    const provider = getBrowserWalletProvider();
+    if (!provider || !address) {
+      return;
+    }
+
+    const controlRoom = await getWalletControlRoom();
+    const { publicClient } = createBrowserWalletClients(provider, address);
+    const [balance, allowance] = await Promise.all([
+      readUsdcBalance({
+        publicClient,
+        ownerAddress: address,
+        usdcAddress: controlRoom.usdcAddress
+      }),
+      readUsdcAllowance({
+        publicClient,
+        ownerAddress: address,
+        spender: controlRoom.arenaAddress,
+        usdcAddress: controlRoom.usdcAddress
+      })
+    ]);
+    setWalletBalance(balance);
+    setWalletAllowance(allowance);
+  }, [getWalletControlRoom, walletAddress]);
+
+  useEffect(() => {
+    if (!walletAddress || !autonomy.controlRoom?.arenaAddress) {
+      return;
+    }
+
+    void refreshWalletReadiness(walletAddress).catch((error) => {
+      setWalletMessage(error instanceof Error ? error.message : 'Wallet readiness unavailable.');
+    });
+  }, [autonomy.controlRoom?.arenaAddress, refreshWalletReadiness, walletAddress]);
+
+  async function connectWallet() {
+    setWalletActionState('connecting');
+    try {
+      const provider = getBrowserWalletProvider();
+      setHasWalletProvider(Boolean(provider));
+      if (!provider) {
+        setWalletMessage('Browser wallet plugin unavailable.');
+        return null;
+      }
+
+      const address = await requestBrowserWalletAddress(provider);
+      const chainId = await readBrowserWalletChainId(provider);
+      setWalletAddress(address);
+      setWalletChainId(chainId);
+      setWalletMessage(address ? `Wallet ${truncateAddress(address)} connected.` : 'No wallet account selected.');
+      if (address) {
+        writeBrowserWalletSession({
+          walletAddress: address,
+          chainId,
+          connectedAt: new Date().toISOString()
+        });
+        await refreshWalletReadiness(address);
+      }
+      return address;
+    } finally {
+      setWalletActionState('idle');
+    }
+  }
 
   async function refreshMarkets() {
     const response = await fetch('/api/markets', { headers: { accept: 'application/json' } });
@@ -743,64 +875,146 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     setSignalPage(1);
     setMetrics(payload.metrics);
     await refreshAutonomy();
+    return payload;
   }
 
-  async function commitSignal(signal: AgentSignal) {
-    const response = await fetch('/api/commit-signal', {
-      method: 'POST',
-      headers: {
-        accept: 'application/json',
-        'content-type': 'application/json'
-      },
-      body: JSON.stringify({ signalId: signal.id })
-    });
-    const payload = (await response.json()) as CommitResponse;
-
-    if (!response.ok || !payload.signal || !payload.txHash) {
-      setLastCommitResult({
-        reason: payload.reason ?? 'Commit failed.',
-        signalId: signal.id,
-        status: 'disabled'
-      });
-      return;
+  async function runAgentsAndFollowSignal() {
+    const address = walletAddress ?? (await connectWallet());
+    if (!address) {
+      throw new Error('Connect a browser wallet before running agents.');
     }
 
-    const committedSignal = payload.signal;
-    setArena((current) => ({
-      ...current,
-      signals: current.signals.map((currentSignal) =>
-        currentSignal.id === committedSignal.id ? committedSignal : currentSignal
-      )
-    }));
-    setMetrics((current) => ({
-      ...current,
-      committedSignals: current.committedSignals + 1,
-      totalBondedMicroUsdc: current.totalBondedMicroUsdc + committedSignal.stakeMicroUsdc
-    }));
-    setLastCommitResult({
-      signalId: signal.id,
-      status: 'committed',
-      txHash: payload.txHash
-    });
-    await refreshAutonomy();
-  }
-
-  async function commitEligibleSignals() {
-    const pendingEligibleSignals = arena.signals.filter(
-      (signal) => isSignalEligibleForCommit(signal) && !signal.arcTxHash
+    const payload = await runAgents();
+    const firstWalletEligibleSignal = selectWalletFundableSignal(
+      payload.signals,
+      walletFollows,
+      address
     );
-
-    if (pendingEligibleSignals.length === 0) {
-      setLastCommitResult({
-        reason: 'No medium/high eligible signals are waiting for Arc commit.',
-        signalId: 'eligible-signals',
+    if (!firstWalletEligibleSignal) {
+      setLastWalletFollowResult({
+        reason: 'No wallet-fundable signal was generated in this run.',
+        signalId: 'run-agents',
         status: 'disabled'
       });
+      setWalletMessage('No eligible signal needs wallet funding from this run.');
       return;
     }
 
-    for (const signal of pendingEligibleSignals) {
-      await commitSignal(signal);
+    await followSignalWithWallet(firstWalletEligibleSignal, address);
+  }
+
+  async function followSignalWithWallet(signal: AgentSignal, preferredAddress = walletAddress) {
+    try {
+      const provider = getBrowserWalletProvider();
+      setHasWalletProvider(Boolean(provider));
+      if (!provider) {
+        throw new Error('Browser wallet plugin unavailable.');
+      }
+
+      let address = preferredAddress;
+      if (!address) {
+        address = await connectWallet();
+      }
+      if (!address) {
+        throw new Error('No wallet account selected.');
+      }
+
+      let chainId = await readBrowserWalletChainId(provider);
+      if (chainId !== ARC_TESTNET_CHAIN_ID) {
+        setWalletActionState('switching');
+        setWalletMessage('Switching wallet to Arc Testnet.');
+        await switchBrowserWalletToArc(provider);
+        chainId = await readBrowserWalletChainId(provider);
+      }
+      setWalletChainId(chainId);
+      writeBrowserWalletSession({
+        walletAddress: address,
+        chainId,
+        connectedAt: new Date().toISOString()
+      });
+
+      const controlRoom = await getWalletControlRoom();
+
+      const { publicClient, walletClient } = createBrowserWalletClients(provider, address);
+      const [balance, allowance] = await Promise.all([
+        readUsdcBalance({
+          publicClient,
+          ownerAddress: address,
+          usdcAddress: controlRoom.usdcAddress
+        }),
+        readUsdcAllowance({
+          publicClient,
+          ownerAddress: address,
+          spender: controlRoom.arenaAddress,
+          usdcAddress: controlRoom.usdcAddress
+        })
+      ]);
+      setWalletBalance(balance);
+      setWalletAllowance(allowance);
+
+      const stake = BigInt(signal.stakeMicroUsdc);
+      if (balance < stake) {
+        throw new Error('Connected wallet needs more Arc Testnet USDC.');
+      }
+
+      if (allowance < stake) {
+        setWalletActionState('approving');
+        setWalletMessage('Approve USDC in your wallet.');
+        await ensureUsdcAllowance({
+          publicClient,
+          walletClient,
+          ownerAddress: address,
+          spender: controlRoom.arenaAddress,
+          usdcAddress: controlRoom.usdcAddress,
+          amount: stake
+        });
+      }
+
+      setWalletActionState('submitting');
+      setWalletMessage('Submit wallet follow transaction.');
+      const txHash = await commitArenaSignal({
+        walletClient,
+        arenaAddress: controlRoom.arenaAddress,
+        signal
+      });
+
+      setWalletActionState('confirming');
+      setWalletMessage('Confirming wallet follow receipt.');
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+
+      const response = await fetch('/api/wallet/follows', {
+        method: 'POST',
+        headers: {
+          accept: 'application/json',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          signalId: signal.id,
+          walletAddress: address,
+          txHash
+        })
+      });
+      const payload = (await response.json()) as WalletFollowResponse;
+      if (!response.ok || !payload.follow) {
+        throw new Error(payload.reason ?? 'wallet_follow_failed');
+      }
+
+      setWalletFollows((current) => [
+        payload.follow!,
+        ...current.filter((follow) => follow.txHash.toLowerCase() !== txHash.toLowerCase())
+      ]);
+      setLastWalletFollowResult({
+        signalId: signal.id,
+        status: 'followed',
+        txHash
+      });
+      setWalletMessage(`Followed ${signal.id} with wallet ${truncateAddress(address)}.`);
+      await refreshWalletReadiness(address);
+    } catch (error) {
+      setWalletMessage(error instanceof Error ? error.message : 'Wallet follow failed.');
+      throw error;
+    } finally {
+      setWalletActionState('idle');
     }
   }
 
@@ -810,7 +1024,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
         await action();
       } catch (error) {
         const reason = error instanceof Error ? error.message : 'Unknown dashboard action error.';
-        setLastCommitResult({
+        setLastWalletFollowResult({
           reason,
           signalId: 'dashboard',
           status: 'disabled'
@@ -832,11 +1046,6 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
   const btcMarket = findAssetMarket(arena.markets, 'BTC');
   const ethMarket = findAssetMarket(arena.markets, 'ETH');
   const solMarket = findAssetMarket(arena.markets, 'SOL');
-  const latestAutonomyRun = autonomy.runs[0];
-  const queueRows =
-    latestAutonomyRun?.queue && latestAutonomyRun.queue.length > 0
-      ? latestAutonomyRun.queue.slice(0, 8)
-      : buildDerivedQueue(arena.signals, lastCommitResult);
   const currentMarketPage = clampPage(marketPage, arena.markets.length, MARKET_PAGE_SIZE);
   const currentSignalPage = clampPage(signalPage, arena.signals.length, SIGNAL_PAGE_SIZE);
   const pagedMarkets = arena.markets.slice(
@@ -847,6 +1056,19 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
     pageStart(currentSignalPage, SIGNAL_PAGE_SIZE),
     pageStart(currentSignalPage, SIGNAL_PAGE_SIZE) + SIGNAL_PAGE_SIZE
   );
+  const connectedWalletFollowCount = walletAddress
+    ? walletFollows.filter((follow) => isSameAddress(follow.walletAddress, walletAddress)).length
+    : 0;
+  const walletStatusStep = getWalletFollowStep({
+    hasProvider: hasWalletProvider,
+    walletAddress,
+    chainId: walletChainId,
+    requiredChainId: ARC_TESTNET_CHAIN_ID,
+    balanceMicroUsdc: walletBalance,
+    allowanceMicroUsdc: walletAllowance,
+    requiredStakeMicroUsdc: eligibleSignals[0]?.stakeMicroUsdc ?? 0,
+    alreadyFollowed: false
+  });
 
   return (
     <main className="arena-shell" data-theme={theme}>
@@ -856,35 +1078,24 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
-          <Link href="/intelligence" className="icon-link status-live">
-            <Icon name="radar" />
-            {t.intelligence}
-          </Link>
-          <Link href="/leaderboard" className="icon-link">
-            <Icon name="chart" />
-            {t.leaderboard}
-          </Link>
-          <Link href="/proof" className="icon-link">
-            <Icon name="wallet" />
-            {t.proofPack}
-          </Link>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => setTheme((current) => (current === 'light' ? 'dark' : 'light'))}
-            aria-label="Toggle theme"
-          >
-            <Icon name={theme === 'light' ? 'sun' : 'moon'} />
-            {theme === 'light' ? t.themeLabel : t.lightThemeLabel}
-          </button>
-          <button
-            type="button"
-            className="icon-button"
-            onClick={() => setLanguage((current) => (current === 'en' ? 'zh' : 'en'))}
-          >
-            <Icon name="globe" />
-            {t.languageLabel}
-          </button>
+          <div className="topbar-nav" aria-label="Product sections">
+            <Link href="/intelligence" className="icon-link status-live">
+              <Icon name="radar" />
+              {t.intelligence}
+            </Link>
+          </div>
+          <DisplayControls
+            language={language}
+            theme={theme}
+            onLanguageChange={setLanguage}
+            onThemeChange={setTheme}
+          />
+          <div className="topbar-wallet-slot">
+            <WalletConnectButton
+              onConnected={handleWalletConnected}
+              onDisconnected={handleWalletDisconnected}
+            />
+          </div>
         </div>
       </nav>
 
@@ -904,6 +1115,14 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             <span className={`status-chip ${commitArmed ? 'status-ready' : 'status-risk'}`}>
               <Icon name="wallet" />
               {t.arcCommit}: {commitArmed ? t.commitArmed : t.commitGuarded}
+            </span>
+            <span className={`status-chip ${walletAddress ? 'status-ready' : 'status-amber'}`}>
+              <Icon name="wallet" />
+              Wallet: {walletAddress ? `${truncateAddress(walletAddress)} · ${connectedWalletFollowCount} follows` : walletStatusStep.label}
+            </span>
+            <span className="status-chip status-amber">
+              <Icon name="bolt" />
+              {walletActionState === 'idle' ? walletMessage : `${walletActionState}: ${walletMessage}`}
             </span>
             {fallbackReason ? (
               <span className="status-chip status-amber">
@@ -974,10 +1193,12 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
           <article className="metric-card">
             <span>
               <Icon name="wallet" />
-              {t.usdcBonded}
+              Wallet Follows
             </span>
-            <strong>{formatUsdMicro(metrics.totalBondedMicroUsdc)}</strong>
-            <small>{metrics.committedSignals} committed</small>
+            <strong>{walletAddress ? connectedWalletFollowCount : walletFollows.length}</strong>
+            <small>
+              {walletBalance === null ? walletStatusStep.label : `${formatUsdMicroValue(walletBalance.toString())} USDC`}
+            </small>
           </article>
         </div>
       </section>
@@ -986,8 +1207,8 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
         <article className="panel autonomy-panel">
           <div className="panel-header">
             <div>
-              <p className="panel-kicker">Scheduled Agents</p>
-              <h2>Autonomy Panel</h2>
+              <p className="panel-kicker">Research Agents</p>
+              <h2>Agent Run Context</h2>
             </div>
             <span className="panel-value">{autonomy.runs.length}</span>
           </div>
@@ -996,7 +1217,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
 
           <div className="autonomy-sections">
             <section>
-              <h3>Mode by Agent</h3>
+              <h3>Agent Modes</h3>
               <div className="policy-grid">
                 {(['volatility', 'momentum'] as const).map((agentName) => {
                   const policy = autonomy.policies?.[agentName];
@@ -1014,31 +1235,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             </section>
 
             <section>
-              <h3>Budget Utilization</h3>
-              <div className="budget-grid">
-                {(latestAutonomyRun?.budgetSnapshots ?? []).map((snapshot) => (
-                  <article key={snapshot.agentName} className="budget-card">
-                    <span>{agentDisplayName(snapshot.agentName)}</span>
-                    <strong>
-                      {formatUsdMicro(snapshot.dailyBondUsedUsdc6)} / {formatUsdMicro(snapshot.policy.maxDailyBondUsdc6)}
-                    </strong>
-                    <small>
-                      {snapshot.signalsUsedToday}/{snapshot.policy.maxSignalsPerDay} daily signals, {snapshot.openSignals}/{snapshot.policy.maxOpenSignals} open
-                    </small>
-                  </article>
-                ))}
-                {!latestAutonomyRun?.budgetSnapshots?.length ? (
-                  <article className="budget-card">
-                    <span>Budget Pending</span>
-                    <strong>No autonomous run yet</strong>
-                    <small>Dry-run history will populate this panel after cron executes.</small>
-                  </article>
-                ) : null}
-              </div>
-            </section>
-
-            <section>
-              <h3>Recent Autonomous Runs</h3>
+              <h3>Recent Runs</h3>
               <ul className="run-history-list">
                 {autonomy.runs.slice(0, 4).map((run) => (
                   <li key={run.runId}>
@@ -1065,19 +1262,29 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
         <article className="panel control-room-panel">
           <div className="panel-header">
             <div>
-              <p className="panel-kicker">Arc Readiness</p>
-              <h2>Agent Control Room</h2>
+              <p className="panel-kicker">Arc Testnet</p>
+              <h2>Wallet Funding</h2>
             </div>
-            <span className={`status-chip ${autonomy.controlRoom?.commitAvailable ? 'status-ready' : 'status-risk'}`}>
-              {autonomy.controlRoom?.status ?? 'loading'}
+            <span className={`status-chip ${walletStatusStep.disabled ? 'status-risk' : walletAddress ? 'status-ready' : 'status-amber'}`}>
+              {walletStatusStep.label}
             </span>
           </div>
 
           <div className="control-room-grid">
             <article>
-              <span>Commit Availability</span>
-              <strong>{autonomy.controlRoom?.commitAvailable ? 'Available' : 'Guarded'}</strong>
-              <small>{autonomy.controlRoom?.reason ?? 'Ready for Arc signal bonds'}</small>
+              <span>Current Wallet</span>
+              <strong>{truncateAddress(walletAddress)}</strong>
+              <small>{walletAddress ? `Arc chain ${walletChainId ?? 'pending'}` : 'Connect with the browser wallet plugin'}</small>
+            </article>
+            <article>
+              <span>USDC Balance</span>
+              <strong>{formatUsdMicroValue(walletBalance?.toString())}</strong>
+              <small>Read from the connected wallet</small>
+            </article>
+            <article>
+              <span>Allowance</span>
+              <strong>{formatUsdMicroValue(walletAllowance?.toString())}</strong>
+              <small>Approved to SignalBondArena</small>
             </article>
             <article>
               <span>Contract</span>
@@ -1092,31 +1299,6 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
               <small>{autonomy.controlRoom?.usdcDecimals ?? 6} USDC decimals</small>
             </article>
           </div>
-
-          <section>
-            <h3>Wallet Readiness</h3>
-            <div className="wallet-readiness-list">
-              {(['volatility', 'momentum'] as const).map((agentName) => {
-                const wallet = autonomy.controlRoom?.wallets[agentName];
-                return (
-                  <article key={agentName}>
-                    <div>
-                      <strong>{agentDisplayName(agentName)}</strong>
-                      <span>{truncateAddress(wallet?.publicAddress)}</span>
-                    </div>
-                    <div>
-                      <span>USDC balance</span>
-                      <strong>{formatUsdMicroValue(wallet?.usdcBalanceMicroUsdc)}</strong>
-                    </div>
-                    <div>
-                      <span>Allowance</span>
-                      <strong>{formatUsdMicroValue(wallet?.allowanceMicroUsdc)}</strong>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </section>
         </article>
       </section>
 
@@ -1138,20 +1320,11 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             <button
               type="button"
               className="primary-button"
-              onClick={() => runAction(runAgents)}
+              onClick={() => runAction(runAgentsAndFollowSignal)}
               disabled={isPending}
             >
               <Icon name="bolt" />
               {t.runAgents}
-            </button>
-            <button
-              type="button"
-              className="wide-button"
-              onClick={() => runAction(commitEligibleSignals)}
-              disabled={isPending || eligibleSignals.length === 0}
-            >
-              <Icon name="wallet" />
-              {t.commitEligible}
             </button>
           </div>
 
@@ -1259,40 +1432,6 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
             <span>{t.arcLane}</span>
           </div>
 
-          <section className="commit-queue-panel">
-            <div className="subpanel-header">
-              <p className="panel-kicker">Batch Commit</p>
-              <h2>Commit Queue</h2>
-            </div>
-            <div className="queue-header">
-              <span>Signal</span>
-              <span>Policy Decision</span>
-              <span>Approve State</span>
-              <span>Failure / Tx</span>
-            </div>
-            <div className="queue-list">
-              {queueRows.map((entry) => (
-                <article key={`${entry.signalId}-${entry.status}`} className="queue-row">
-                  <code>{entry.signalId}</code>
-                  <span>{queueStatusLabel(entry.status)}</span>
-                  <span>{entry.status === 'committed' ? 'approved + committed' : entry.status === 'dry_run_eligible' ? 'dry-run only' : 'not attempted'}</span>
-                  <span>
-                    {entry.txHash ? (
-                      <TxLink hash={entry.txHash} />
-                    ) : (
-                      entry.reason ?? `${formatPercent(entry.edgeBps)} edge / ${formatUsdMicro(entry.stakeMicroUsdc)}`
-                    )}
-                  </span>
-                </article>
-              ))}
-              {queueRows.length === 0 ? (
-                <article className="queue-row queue-row-empty">
-                  <span>No queue rows yet. Run agents or cron to populate policy decisions.</span>
-                </article>
-              ) : null}
-            </div>
-          </section>
-
           <PaginationControl
             ariaLabel={t.signalBoard}
             itemLabel={language === 'zh' ? '信号' : 'Signals'}
@@ -1308,6 +1447,20 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
 
           <div className="signal-list">
             {pagedSignals.map((signal) => {
+              const signalWalletFollows = walletFollows.filter((follow) => follow.signalId === signal.id);
+              const followedByConnectedWallet =
+                walletAddress &&
+                signalWalletFollows.some((follow) => isSameAddress(follow.walletAddress, walletAddress));
+              const walletFollowStep = getWalletFollowStep({
+                hasProvider: hasWalletProvider,
+                walletAddress,
+                chainId: walletChainId,
+                requiredChainId: ARC_TESTNET_CHAIN_ID,
+                balanceMicroUsdc: walletBalance,
+                allowanceMicroUsdc: walletAllowance,
+                requiredStakeMicroUsdc: signal.stakeMicroUsdc,
+                alreadyFollowed: Boolean(followedByConnectedWallet)
+              });
               const disabledReason =
                 signal.side === 'AVOID'
                   ? language === 'zh'
@@ -1384,6 +1537,10 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                       <span className="signal-label">{t.status}</span>
                       <strong>{signal.status}</strong>
                     </div>
+                    <div>
+                      <span className="signal-label">Wallet Follows</span>
+                      <strong>{signalWalletFollows.length}</strong>
+                    </div>
                   </div>
 
                   <div className="probability-lane" aria-label={t.probabilityRail}>
@@ -1413,18 +1570,24 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                     </Link>
                     {signal.arcTxHash ? (
                       <TxLink hash={signal.arcTxHash} />
-                    ) : disabledReason ? (
+                    ) : null}
+                    {disabledReason ? (
                       <span className="muted">{disabledReason}</span>
                     ) : (
                       <button
                         type="button"
-                        onClick={() => runAction(() => commitSignal(signal))}
-                        disabled={isPending}
+                        onClick={() => runAction(() => followSignalWithWallet(signal))}
+                        disabled={isPending || walletActionState !== 'idle' || walletFollowStep.disabled}
                       >
                         <Icon name="wallet" />
-                        {t.commitToArc}
+                        {walletFollowStep.action === 'follow' ? 'Follow with Wallet' : walletFollowStep.label}
                       </button>
                     )}
+                    {signalWalletFollows.length > 0 ? (
+                      <span className="muted">
+                        {signalWalletFollows.length} wallet follow{signalWalletFollows.length === 1 ? '' : 's'}
+                      </span>
+                    ) : null}
                   </div>
                 </section>
               );
@@ -1448,21 +1611,21 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
           </div>
 
           <div className="commit-summary">
-            {lastCommitResult ? (
-              lastCommitResult.status === 'committed' ? (
+            {lastWalletFollowResult ? (
+              lastWalletFollowResult.status === 'followed' ? (
                 <>
                   <span className="summary-tone summary-positive">{t.commitConfirmed}</span>
                   <p>
-                    <strong>{lastCommitResult.signalId}</strong> settled to Arc with tx{' '}
-                    <code>{truncateHash(lastCommitResult.txHash)}</code>
+                    <strong>{lastWalletFollowResult.signalId}</strong> was followed with your wallet tx{' '}
+                    <code>{truncateHash(lastWalletFollowResult.txHash)}</code>
                   </p>
                 </>
               ) : (
                 <>
                   <span className="summary-tone summary-risk">{t.commitBlocked}</span>
                   <p>
-                    <strong>{lastCommitResult.signalId}</strong> remains gated:{' '}
-                    {lastCommitResult.reason}
+                    <strong>{lastWalletFollowResult.signalId}</strong> wallet flow is gated:{' '}
+                    {lastWalletFollowResult.reason}
                   </p>
                 </>
               )
@@ -1487,12 +1650,12 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
               <strong>{commitArmed ? t.commitArmed : t.commitGuarded}</strong>
             </article>
             <article>
-              <span>{t.usdcBonded}</span>
-              <strong>{formatUsdMicro(metrics.totalBondedMicroUsdc)}</strong>
+              <span>Wallet Follows</span>
+              <strong>{walletAddress ? connectedWalletFollowCount : walletFollows.length}</strong>
             </article>
             <article>
               <span>{t.arcMode}</span>
-              <strong>USDC</strong>
+              <strong>{walletAddress ? truncateAddress(walletAddress) : 'Connect'}</strong>
             </article>
           </div>
 

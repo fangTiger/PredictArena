@@ -30,6 +30,7 @@ import type {
   AutonomousRunRecord,
   CommitClaimRecord,
   UpdateCommitClaimInput,
+  WalletFollowRecord,
   PersistenceStore
 } from '@/lib/persistence/store';
 import { createEmptyOperationsState } from '@/lib/persistence/store';
@@ -37,6 +38,7 @@ import { computeBrierScoreBps, computePaperRoiBps } from '@/lib/resolution/scori
 
 interface PersistedState extends ArenaState {
   latestScan?: LatestScanState;
+  walletFollows: WalletFollowRecord[];
   savedIntelligence: SavedIntelligenceWorkspaceMap;
 }
 
@@ -59,6 +61,7 @@ function emptyState(): PersistedState {
   return {
     markets: [],
     signals: [],
+    walletFollows: [],
     autonomyRuns: [],
     ops: createEmptyOperationsState(),
     savedIntelligence: {}
@@ -89,6 +92,7 @@ function normalizeState(state: Partial<PersistedState> | null | undefined): Pers
   next.savedIntelligence = normalizeSavedIntelligenceStateMap(
     (state as Partial<PersistedState> | undefined)?.savedIntelligence
   );
+  next.walletFollows = [...((state as Partial<PersistedState> | undefined)?.walletFollows ?? [])];
 
   return next;
 }
@@ -462,6 +466,10 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
       ops: state.ops
     };
 
+    if (state.walletFollows.length > 0) {
+      arenaState.walletFollows = [...state.walletFollows];
+    }
+
     if (state.latestScan) {
       arenaState.latestScan = { ...state.latestScan };
     }
@@ -635,6 +643,35 @@ export function createLocalStore(options: LocalStoreOptions): PersistenceStore {
     async getSignal(signalId: string) {
       const state = await readState();
       return state.signals.find((signal) => signal.id === signalId);
+    },
+
+    async saveWalletFollow(record: WalletFollowRecord) {
+      return mutate(async (state) => {
+        const signal = state.signals.find((entry) => entry.id === record.signalId);
+        if (!signal) {
+          throw new Error(`unknown_signal:${record.signalId}`);
+        }
+
+        const existing = state.walletFollows.find(
+          (follow) => follow.txHash.toLowerCase() === record.txHash.toLowerCase()
+        );
+        if (existing) {
+          return existing;
+        }
+
+        state.walletFollows = [record, ...state.walletFollows].sort((left, right) =>
+          right.followedAt.localeCompare(left.followedAt)
+        );
+        return record;
+      });
+    },
+
+    async listWalletFollows(signalId?: string) {
+      const state = await readState();
+      const follows = signalId
+        ? state.walletFollows.filter((follow) => follow.signalId === signalId)
+        : state.walletFollows;
+      return [...follows].sort((left, right) => right.followedAt.localeCompare(left.followedAt));
     },
 
     async markSignalCommitted(signalId: string, txHash: `0x${string}`, signalRecordId = null) {

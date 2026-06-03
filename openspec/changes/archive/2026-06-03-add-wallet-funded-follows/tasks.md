@@ -1,0 +1,12 @@
+## 1. 实现任务
+- [x] 1.1 新增 wallet follow OpenSpec delta 并通过 strict validate
+- [x] 1.2 新增 wallet follow 持久化类型、local/Supabase store 代理方法和测试
+- [x] 1.3 新增链上 receipt 验证服务和 wallet follow 确认 API，覆盖成功与拒绝场景
+- [x] 1.4 新增浏览器插件钱包客户端 helper，覆盖 provider 缺失、链切换、授权、提交状态
+- [x] 1.5 更新 `/arena` 简约钱包 UI 与信号卡自费跟随按钮，不改变 agent leaderboard
+- [x] 1.6 更新信号详情页展示 wallet follows
+- [x] 1.7 运行定向测试、lint/build 或记录无法验证项
+- [x] 1.8 将连接/断开钱包入口提升为全站右上角独立控件，并与业务导航视觉分离
+- [x] 1.9 将默认首页重定向到 `/arena`
+- [x] 1.10 将 `Run Agents` 改为生成信号后触发当前用户钱包自费跟随一个合格信号
+- [x] 1.11 将 `/arena` 资金展示改为当前用户钱包 balance/allowance，隐藏 agent/operator 钱包余额

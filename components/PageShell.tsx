@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { DisplayControls } from '@/components/DisplayControls';
+import { WalletConnectButton } from '@/components/WalletConnectButton';
 
 type HeroSize = 'standard' | 'compact';
 type PillTone = 'neutral' | 'mint' | 'sky';
@@ -17,18 +19,15 @@ export function PageShell({ children }: { children: ReactNode }) {
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
-          <Link href="/intelligence" className="icon-link status-live">
-            Intelligence
-          </Link>
-          <Link href="/arena" className="icon-link">
-            Arena
-          </Link>
-          <Link href="/proof" className="icon-link">
-            Proof Pack
-          </Link>
-          <Link href="/leaderboard" className="icon-link">
-            Leaderboard
-          </Link>
+          <div className="topbar-nav" aria-label="Product sections">
+            <Link href="/arena" className="icon-link status-live">
+              Arena
+            </Link>
+          </div>
+          <DisplayControls />
+          <div className="topbar-wallet-slot">
+            <WalletConnectButton />
+          </div>
         </div>
       </nav>
       {children}

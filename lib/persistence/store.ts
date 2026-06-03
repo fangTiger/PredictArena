@@ -74,10 +74,24 @@ export interface AutonomousRunRecord {
   lockExpiresAt?: string | null;
 }
 
+export interface WalletFollowRecord {
+  id: string;
+  signalId: string;
+  walletAddress: `0x${string}`;
+  txHash: `0x${string}`;
+  signalRecordId: number | null;
+  chainId: number;
+  arenaAddress: `0x${string}`;
+  stakeMicroUsdc: number;
+  agentName: AgentSignal['agentName'];
+  followedAt: string;
+}
+
 export interface ArenaState {
   latestScan?: LatestScanState;
   markets: ParsedCryptoMarket[];
   signals: AgentSignal[];
+  walletFollows?: WalletFollowRecord[];
   autonomyRuns: AutonomousRunRecord[];
   ops?: ArenaOperationsState;
   lastRun?: {
@@ -265,6 +279,8 @@ export interface PersistenceStore {
   getOperationsState(): Promise<ArenaOperationsState>;
   listSignals(): Promise<AgentSignal[]>;
   getSignal(signalId: string): Promise<AgentSignal | undefined>;
+  saveWalletFollow(record: WalletFollowRecord): Promise<WalletFollowRecord>;
+  listWalletFollows(signalId?: string): Promise<WalletFollowRecord[]>;
   markSignalCommitted(
     signalId: string,
     txHash: `0x${string}`,
