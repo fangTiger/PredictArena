@@ -2956,3 +2956,16 @@ code {
 /* Utility classes consumed by Admin */
 .admin-page  { background: var(--admin-bg); color: var(--admin-fg); }
 .admin-rule  { border-color: var(--admin-rule); }
+
+.topnav { display: flex; justify-content: space-between; align-items: center; padding: 18px 32px; }
+.topnav-logo { font-size: 13px; letter-spacing: 1.5px; font-weight: 700; }
+.topnav-segments { display: flex; gap: 28px; }
+.topnav-segment { font-size: 11px; letter-spacing: 2px; color: var(--editorial-mute); text-transform: uppercase; }
+.topnav-segment[data-active='true'] { color: var(--editorial-fg); }
+
+.topnav-editorial { background: var(--editorial-bg); border-bottom: 1px solid var(--editorial-rule); }
+.topnav-editorial .topnav-logo { color: var(--editorial-fg); }
+
+.topnav-glass { background: transparent; border-bottom: 1px solid var(--glass-card-border); }
+.topnav-glass .topnav-segment { color: var(--glass-fg-mute); }
+.topnav-glass .topnav-segment[data-active='true'] { color: var(--glass-fg); background: rgba(var(--glass-tint-purple), 0.18); padding: 6px 16px; border-radius: 999px; border: 1px solid rgba(var(--glass-tint-purple), 0.3); }
