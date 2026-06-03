@@ -6,11 +6,11 @@ const root = process.cwd();
 
 describe('wallet-funded follow UI wiring', () => {
   it('keeps the editorial home stub while preserving wallet-follow wiring elsewhere', async () => {
-    const [rootPage, arenaDashboard, pageShell, signalDetail, walletButton, displayControls] = await Promise.all([
+    const [rootPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls] = await Promise.all([
       fs.readFile(path.join(root, 'app/page.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/PageShell.tsx'), 'utf8'),
-      fs.readFile(path.join(root, 'app/signals/[id]/page.tsx'), 'utf8'),
+      fs.readFile(path.join(root, 'components/AdminShell.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/WalletConnectButton.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/DisplayControls.tsx'), 'utf8')
     ]);
@@ -25,6 +25,10 @@ describe('wallet-funded follow UI wiring', () => {
     expect(arenaDashboard).toContain('topbar-wallet-slot');
     expect(pageShell).toContain('WalletConnectButton');
     expect(pageShell).toContain('DisplayControls');
+    expect(pageShell).toContain('href="/agents"');
+    expect(pageShell).not.toContain('href="/intelligence"');
+    expect(adminShell).toContain('/admin/resolution');
+    expect(adminShell).toContain('/admin/proof');
     expect(walletButton).toContain('Disconnect');
     expect(displayControls).toContain('Toggle theme');
     expect(displayControls).toContain('中文');
@@ -38,7 +42,5 @@ describe('wallet-funded follow UI wiring', () => {
     expect(arenaDashboard).not.toContain('Wallet Readiness');
     expect(arenaDashboard).not.toContain('Batch Commit');
     expect(arenaDashboard).not.toContain('Commit Eligible Signals');
-    expect(signalDetail).not.toContain('AdminDemoSettlement');
-    expect(signalDetail).toContain('Wallet Follows');
   });
 });

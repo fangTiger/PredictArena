@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { HeroPill, PageHero, PageShell, SectionLabel } from '@/components/PageShell';
 import { TxLink } from '@/components/TxLink';
 import { buildProofPackView } from '@/lib/proof/service';
 import type { OperatorHealthItem } from '@/lib/ops/operatorHealth';
@@ -7,6 +6,37 @@ import { formatBps, formatIsoDateTime, formatMicroUsdc } from '@/lib/utils/forma
 import { ProofSmokeConsole } from './ProofSmokeConsole';
 
 export const dynamic = 'force-dynamic';
+
+const sectionStyle = {
+  display: 'grid',
+  gap: '1rem'
+} as const;
+
+const panelStyle = {
+  display: 'grid',
+  gap: '1rem',
+  padding: '1.5rem',
+  border: '1px solid var(--admin-rule)',
+  borderRadius: '18px',
+  background: '#141414'
+} as const;
+
+const mutedStyle = {
+  margin: 0,
+  lineHeight: 1.7,
+  color: '#9c9c9c'
+} as const;
+
+const actionLinkStyle = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  minHeight: '42px',
+  padding: '0.72rem 1rem',
+  border: '1px solid var(--admin-rule)',
+  borderRadius: '14px',
+  color: 'var(--admin-fg)',
+  background: '#181818'
+} as const;
 
 function shortAddress(value: string | null): string {
   if (!value) {
@@ -39,64 +69,84 @@ export default async function ProofPage() {
   const wallets = Object.entries(proofPack.smoke.wallets);
 
   return (
-    <PageShell>
-      <PageHero
-        size="compact"
-        eyebrow={
-          <>
-            <HeroPill tone={proofPack.smoke.commitPreconditions.commitAvailable ? 'mint' : 'neutral'}>
-              {proofPack.smoke.commitPreconditions.commitAvailable ? 'Proof Ready' : 'Read-only Proof'}
-            </HeroPill>
-            <HeroPill tone={proofPack.persistenceMode === 'local_atomic' ? 'sky' : 'neutral'}>
-              {proofPack.persistenceMode === 'local_atomic' ? 'Local Atomic' : 'Supabase Best Effort'}
-            </HeroPill>
-          </>
-        }
-        title="Proof Pack"
-        description="Latest autonomous receipt, Arc readiness, wallet facts, health state, and bounded proof controls in one operator view."
-        actions={
-          <>
-            <Link className="icon-link" href="/arena">
-              Arena
-            </Link>
-            <Link className="icon-link" href="/demo-resolution">
-              Demo Script
-            </Link>
-          </>
-        }
-        side={
-          <dl className="proof-hero-metrics">
-            <div>
-              <dt>Latest Receipt</dt>
-              <dd>{latestReceipt ? latestReceipt.runId : 'No run yet'}</dd>
-            </div>
-            <div>
-              <dt>Latest Tx</dt>
-              <dd>
-                <TxLink hash={proofPack.latestTxHash} />
-              </dd>
-            </div>
-            <div>
-              <dt>Bonded USDC</dt>
-              <dd>{formatMicroUsdc(proofPack.bondedUsdcMicroUsdc)}</dd>
-            </div>
-            <div>
-              <dt>Next Demo Action</dt>
-              <dd>{proofPack.nextDemoAction}</dd>
-            </div>
-          </dl>
-        }
-      />
+    <section style={sectionStyle}>
+      <header style={panelStyle}>
+        <div className="deck-status-row">
+          <span
+            className={
+              proofPack.smoke.commitPreconditions.commitAvailable
+                ? 'status-chip status-ready'
+                : 'status-chip'
+            }
+          >
+            {proofPack.smoke.commitPreconditions.commitAvailable ? 'Proof Ready' : 'Read-only Proof'}
+          </span>
+          <span
+            className={
+              proofPack.persistenceMode === 'local_atomic'
+                ? 'status-chip status-live'
+                : 'status-chip'
+            }
+          >
+            {proofPack.persistenceMode === 'local_atomic' ? 'Local Atomic' : 'Supabase Best Effort'}
+          </span>
+        </div>
+        <div style={{ display: 'grid', gap: '0.75rem' }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.78rem',
+              letterSpacing: '0.22em',
+              textTransform: 'uppercase',
+              color: 'var(--admin-accent)'
+            }}
+          >
+            Proof Rail
+          </p>
+          <h1 style={{ margin: 0, fontSize: '2.1rem' }}>Admin Proof</h1>
+          <p style={mutedStyle}>
+            Latest receipt summary, Arc readiness, wallet facts, health state, and bounded proof controls in a single greyscale operator surface.
+          </p>
+        </div>
+        <dl className="proof-hero-metrics">
+          <div>
+            <dt>Latest Receipt</dt>
+            <dd>{latestReceipt ? latestReceipt.runId : 'No run yet'}</dd>
+          </div>
+          <div>
+            <dt>Latest Tx</dt>
+            <dd>
+              <TxLink hash={proofPack.latestTxHash} />
+            </dd>
+          </div>
+          <div>
+            <dt>Bonded USDC</dt>
+            <dd>{formatMicroUsdc(proofPack.bondedUsdcMicroUsdc)}</dd>
+          </div>
+          <div>
+            <dt>Next Demo Action</dt>
+            <dd>{proofPack.nextDemoAction}</dd>
+          </div>
+        </dl>
+        <div className="deck-status-row">
+          <Link href="/admin/resolution" style={actionLinkStyle}>
+            Resolution
+          </Link>
+          <Link href="/admin/receipts" style={actionLinkStyle}>
+            Receipts
+          </Link>
+        </div>
+      </header>
 
       <section className="proof-grid" aria-label="Proof Pack summary">
         <article className="panel proof-panel">
           <div className="panel-header">
             <div>
-              <SectionLabel>Latest Receipt</SectionLabel>
+              <p className="panel-kicker">Latest Receipt</p>
               <h2>Autonomous Run</h2>
             </div>
             {latestReceipt ? (
-              <Link className="icon-link" href={`/autonomy/runs/${encodeURIComponent(latestReceipt.runId)}`}>
+              <Link className="icon-link" href="/admin/receipts">
                 Open Receipt
               </Link>
             ) : null}
@@ -128,7 +178,7 @@ export default async function ProofPage() {
         <article className="panel proof-panel">
           <div className="panel-header">
             <div>
-              <SectionLabel>Arc Readiness</SectionLabel>
+              <p className="panel-kicker">Arc Readiness</p>
               <h2>Contract and Chain</h2>
             </div>
             <span className={proofPack.smoke.commitPreconditions.commitAvailable ? 'status-chip status-ready' : 'status-chip status-amber'}>
@@ -158,11 +208,11 @@ export default async function ProofPage() {
         <article className="panel proof-panel">
           <div className="panel-header">
             <div>
-              <SectionLabel>Top Reputation</SectionLabel>
+              <p className="panel-kicker">Top Reputation</p>
               <h2>Agent Profile</h2>
             </div>
             {proofPack.topReputation ? (
-              <Link className="icon-link" href={`/agents/${proofPack.topReputation.agentName}`}>
+              <Link className="icon-link" href="/agents">
                 Open Agent
               </Link>
             ) : null}
@@ -198,7 +248,7 @@ export default async function ProofPage() {
         <article className="panel proof-panel">
           <div className="panel-header">
             <div>
-              <SectionLabel>Resolution Summary</SectionLabel>
+              <p className="panel-kicker">Resolution Summary</p>
               <h2>Settlement Memory</h2>
             </div>
           </div>
@@ -227,7 +277,7 @@ export default async function ProofPage() {
         <section className="panel proof-health-panel" aria-labelledby="operator-health-title">
           <div className="panel-header">
             <div>
-              <SectionLabel>Operator Health</SectionLabel>
+              <p className="panel-kicker">Operator Health</p>
               <h2 id="operator-health-title">Blocking Facts</h2>
             </div>
             <span className={healthItems.length === 0 ? 'status-chip status-ready' : 'status-chip status-amber'}>
@@ -261,7 +311,7 @@ export default async function ProofPage() {
       <section className="panel proof-wallet-panel" aria-labelledby="wallet-facts-title">
         <div className="panel-header">
           <div>
-            <SectionLabel>Wallet Facts</SectionLabel>
+            <p className="panel-kicker">Wallet Facts</p>
             <h2 id="wallet-facts-title">Agent Wallets</h2>
           </div>
         </div>
@@ -295,6 +345,6 @@ export default async function ProofPage() {
           ))}
         </div>
       </section>
-    </PageShell>
+    </section>
   );
 }

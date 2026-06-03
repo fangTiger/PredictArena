@@ -5,6 +5,8 @@ const ADMIN_LINKS = [
   { href: '/admin', label: 'Overview' },
   { href: '/admin/control-room', label: 'Control Room' },
   { href: '/admin/receipts', label: 'Receipts' },
+  { href: '/admin/resolution', label: 'Resolution' },
+  { href: '/admin/proof', label: 'Proof' },
   { href: '/admin/health', label: 'Health' }
 ];
 
@@ -47,7 +49,7 @@ export function AdminShell({
           </p>
           <strong style={{ fontSize: '1.3rem' }}>Admin Shell</strong>
           <p style={{ margin: 0, lineHeight: 1.7, color: '#9c9c9c' }}>
-            Hidden operator rail for control-room facts, receipts, and internal diagnostics.
+            Hidden operator rail for control-room facts, receipt review, resolution commands, and proof diagnostics.
           </p>
         </div>
 

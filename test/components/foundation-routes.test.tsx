@@ -1,4 +1,6 @@
 import React from 'react';
+import { access } from 'node:fs/promises';
+import path from 'node:path';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 
@@ -48,6 +50,8 @@ import MyPage from '@/app/my/page';
 import AdminLayout from '@/app/admin/layout';
 import AdminLoginPage from '@/app/admin-login/page';
 import { submitAdminLogin } from '@/app/admin-login/actions';
+
+const root = process.cwd();
 
 describe('foundation routes', () => {
   const originalAccessToken = process.env.ADMIN_ACCESS_TOKEN;
@@ -167,5 +171,35 @@ describe('foundation routes', () => {
     );
 
     expect(routeState.cookieSet).not.toHaveBeenCalled();
+  });
+
+  it('keeps legacy public showcase routes removed while admin replacements exist', async () => {
+    const shouldExist = [
+      'app/admin/resolution/page.tsx',
+      'app/admin/resolution/DemoResolutionConsole.tsx',
+      'app/admin/proof/page.tsx',
+      'app/admin/proof/ProofSmokeConsole.tsx'
+    ];
+    const shouldBeGone = [
+      'app/demo-resolution',
+      'app/proof',
+      'app/intelligence',
+      'app/autonomy',
+      'app/leaderboard',
+      'app/signals',
+      'app/agents/[agentName]'
+    ];
+
+    await Promise.all(
+      shouldExist.map(async (entry) => {
+        await expect(access(path.join(root, entry))).resolves.toBeUndefined();
+      })
+    );
+
+    await Promise.all(
+      shouldBeGone.map(async (entry) => {
+        await expect(access(path.join(root, entry))).rejects.toThrow();
+      })
+    );
   });
 });

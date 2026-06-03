@@ -21,12 +21,12 @@
 
 ## 2. Legacy Cleanup (Plan Chunk 2)
 
-- [ ] 2.1 Migrate `/demo-resolution` (page + console) to `/admin/resolution`. _Executor: Codex_
-- [ ] 2.2 Migrate `/proof` (page + console) to `/admin/proof`. _Executor: Codex_
-- [ ] 2.3 Delete `app/intelligence/`, `app/autonomy/`, `app/leaderboard/`, `app/signals/` directories. _Executor: Codex_
-- [ ] 2.4 Delete legacy `app/agents/[agentName]/` directory (will be reconstructed in Chunk 9). _Executor: Codex_
-- [ ] 2.5 Enumerate + update any UI link references; delete or update tests referencing removed routes. _Executor: Codex_
-- [ ] 2.6 Final foundation verification (build, tests, lint, manual route smoke). _Executor: Codex_
+- [x] 2.1 Migrate `/demo-resolution` (page + console) to `/admin/resolution`. _Executor: Codex_
+- [x] 2.2 Migrate `/proof` (page + console) to `/admin/proof`. _Executor: Codex_
+- [x] 2.3 Delete `app/intelligence/`, `app/autonomy/`, `app/leaderboard/`, `app/signals/` directories. _Executor: Codex_
+- [x] 2.4 Delete legacy `app/agents/[agentName]/` directory (will be reconstructed in Chunk 9). _Executor: Codex_
+- [x] 2.5 Enumerate + update any UI link references; delete or update tests referencing removed routes. _Executor: Codex_
+- [x] 2.6 Final foundation verification (build, tests, lint, manual route smoke). _Executor: Codex_
 
 ## 3. ShowdownArena Smart Contract (Plan Chunk 3)
 

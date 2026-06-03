@@ -1073,15 +1073,15 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
   return (
     <main className="arena-shell" data-theme={theme}>
       <nav className="arena-topbar" aria-label="PredictArena controls">
-        <Link href="/intelligence" className="brand-lockup" aria-label="PredictArena intelligence">
+        <Link href="/arena" className="brand-lockup" aria-label="PredictArena arena">
           <span className="brand-mark" aria-hidden="true" />
           <span>PredictArena</span>
         </Link>
         <div className="topbar-actions">
           <div className="topbar-nav" aria-label="Product sections">
-            <Link href="/intelligence" className="icon-link status-live">
+            <Link href="/agents" className="icon-link status-live">
               <Icon name="radar" />
-              {t.intelligence}
+              {language === 'zh' ? '智能体' : 'Agents'}
             </Link>
           </div>
           <DisplayControls
@@ -1240,9 +1240,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                 {autonomy.runs.slice(0, 4).map((run) => (
                   <li key={run.runId}>
                     <div>
-                      <Link href={`/autonomy/runs/${encodeURIComponent(run.runId)}`}>
-                        <strong>{formatTimestampLabel(run.triggeredAt)}</strong>
-                      </Link>
+                      <strong>{formatTimestampLabel(run.triggeredAt)}</strong>
                       <span>{run.source} · {run.generatedSignalCount} generated</span>
                     </div>
                     <div className="leaderboard-metric">
@@ -1475,11 +1473,7 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                   <div className="signal-card-top">
                     <div>
                       <p className="signal-id">{signal.id}</p>
-                      <h3>
-                        <Link href={`/signals/${encodeURIComponent(signal.id)}`}>
-                          {signal.marketQuestion}
-                        </Link>
-                      </h3>
+                      <h3>{signal.marketQuestion}</h3>
                     </div>
                     <span className={`decision ${signalDecisionClass(signal)}`}>{signal.side}</span>
                   </div>
@@ -1561,13 +1555,10 @@ export function ArenaDashboard({ initialMetrics, initialState }: ArenaDashboardP
                   </ul>
 
                   <div className="commit-cell">
-                    <Link
-                      href={`/signals/${encodeURIComponent(signal.id)}`}
-                      className="signal-detail-link"
-                    >
+                    <span className="signal-detail-link" aria-disabled="true">
                       <Icon name="chart" />
                       {t.openSignal}
-                    </Link>
+                    </span>
                     {signal.arcTxHash ? (
                       <TxLink hash={signal.arcTxHash} />
                     ) : null}

@@ -20,6 +20,14 @@ describe('AdminShell', () => {
       'href',
       '/admin/receipts'
     );
+    expect(screen.getByRole('link', { name: 'Resolution' })).toHaveAttribute(
+      'href',
+      '/admin/resolution'
+    );
+    expect(screen.getByRole('link', { name: 'Proof' })).toHaveAttribute(
+      'href',
+      '/admin/proof'
+    );
     expect(screen.getByRole('link', { name: 'Health' })).toHaveAttribute(
       'href',
       '/admin/health'

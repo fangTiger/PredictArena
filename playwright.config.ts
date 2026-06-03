@@ -28,6 +28,7 @@ export default defineConfig({
     url: 'http://127.0.0.1:3000',
     reuseExistingServer: false,
     env: {
+      ADMIN_ACCESS_TOKEN: 'playwright-admin-token',
       ALLOW_DEMO_SNAPSHOT: 'true',
       PREDICTARENA_LOCAL_STORE_PATH: '/tmp/predictarena-playwright-store.json',
       PROOF_MODE_SECRET: 'playwright-proof-secret',
