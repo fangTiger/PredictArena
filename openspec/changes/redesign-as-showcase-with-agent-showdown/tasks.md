@@ -58,14 +58,14 @@
 
 ## 6. Showdown Backend Part 2 (Plan Chunk 6)
 
-- [ ] 6.1 Implement `settleEligibleShowdowns` service + `mapResolutionToAgentAWins`. _Executor: Codex_
-- [ ] 6.2 Cover settlement + stuck-flag path in tests. _Executor: Codex_
-- [ ] 6.3 Implement `GET /api/showdowns` with status filter. _Executor: Codex_
-- [ ] 6.4 Implement `POST /api/showdowns/discover` (admin-gated). _Executor: Codex_
-- [ ] 6.5 Implement `POST /api/showdowns/[id]/settle` (admin-gated, single-showdown target). _Executor: Codex_
-- [ ] 6.6 Implement `buildDefaultDiscoveryDeps` + `buildDefaultSettlementDeps`. _Executor: Codex_
-- [ ] 6.7 Wire `getHomeStripData` to count settled showdowns + identify leader (drop placeholder marker in `HomeDataStrip`). _Executor: Codex_
-- [ ] 6.8 Integrate discovery + settlement into cron route. _Executor: Codex_
+- [x] 6.1 Implement `settleEligibleShowdowns` service + `mapResolutionToAgentAWins`. _Executor: Codex_
+- [x] 6.2 Cover settlement + stuck-flag path in tests. _Executor: Codex_
+- [x] 6.3 Implement `GET /api/showdowns` with status filter. _Executor: Codex_
+- [x] 6.4 Implement `POST /api/showdowns/discover` (admin-gated). _Executor: Codex_
+- [x] 6.5 Implement `POST /api/showdowns/[id]/settle` (admin-gated, single-showdown target). _Executor: Codex_
+- [x] 6.6 Implement `buildDefaultDiscoveryDeps` + `buildDefaultSettlementDeps`. _Executor: Codex_
+- [x] 6.7 Wire `getHomeStripData` to count settled showdowns + identify leader (drop placeholder marker in `HomeDataStrip`). _Executor: Codex_
+- [x] 6.8 Integrate discovery + settlement into cron route. _Executor: Codex_
 
 ## 7. Arena UI Rewrite (Plan Chunk 7)
 

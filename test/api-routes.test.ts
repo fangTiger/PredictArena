@@ -815,6 +815,48 @@ describe('PredictArena API routes', () => {
     vi.useRealTimers();
   });
 
+  it('GET /api/cron/run-autonomous-agents keeps a 200 response when showdown discovery and settlement wiring fails', async () => {
+    vi.stubEnv('CRON_SECRET', 'cron-secret');
+    vi.stubEnv('AUTONOMY_VOL_MODE', 'DRY_RUN');
+    vi.stubEnv('AUTONOMY_MOMENTUM_MODE', 'OFF');
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new Error('network down')));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.doMock('@/lib/services/showdownDiscoveryDefaults', () => ({
+      buildDefaultDiscoveryDeps: vi.fn(async () => {
+        throw new Error('showdown_discovery_config_missing');
+      })
+    }));
+    vi.doMock('@/lib/services/showdownSettlementDefaults', () => ({
+      buildDefaultSettlementDeps: vi.fn(async () => {
+        throw new Error('showdown_settlement_config_missing');
+      })
+    }));
+    const { GET } = await import('@/app/api/cron/run-autonomous-agents/route');
+
+    const response = await GET(
+      new Request('http://localhost/api/cron/run-autonomous-agents', {
+        method: 'GET',
+        headers: {
+          authorization: 'Bearer cron-secret'
+        }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.showdowns).toMatchObject({
+      discovery: {
+        status: 'error',
+        reason: 'showdown_discovery_config_missing'
+      },
+      settlement: {
+        status: 'error',
+        reason: 'showdown_settlement_config_missing'
+      }
+    });
+    expect(warnSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('GET /api/autonomy returns public policy, run history, and control-room data without secrets', async () => {
     vi.stubEnv('CRON_SECRET', 'cron-secret');
     vi.stubEnv('AUTONOMY_VOL_MODE', 'DRY_RUN');

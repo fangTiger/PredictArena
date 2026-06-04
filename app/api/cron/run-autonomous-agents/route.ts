@@ -7,6 +7,10 @@ import {
 } from '@/lib/autonomy/runAutonomousAgents';
 import { getServerEnv } from '@/lib/config/env';
 import { getRuntimeStore } from '@/lib/persistence/store';
+import { discoverShowdowns } from '@/lib/services/showdownDiscovery';
+import { buildDefaultDiscoveryDeps } from '@/lib/services/showdownDiscoveryDefaults';
+import { settleEligibleShowdowns } from '@/lib/services/showdownSettlement';
+import { buildDefaultSettlementDeps } from '@/lib/services/showdownSettlementDefaults';
 
 const bodySchema = z.object({
   idempotencyKey: z.string().min(1).max(200).optional(),
@@ -60,6 +64,51 @@ function safeReasonCode(input: unknown, fallback: string): string {
   return /^[a-z0-9_:-]+$/i.test(input) ? input : fallback;
 }
 
+async function runShowdownLifecycle() {
+  const showdownSummary = {
+    discovery: {
+      status: 'ok' as 'ok' | 'error',
+      result: null as Awaited<ReturnType<typeof discoverShowdowns>> | null,
+      reason: null as string | null
+    },
+    settlement: {
+      status: 'ok' as 'ok' | 'error',
+      result: null as Awaited<ReturnType<typeof settleEligibleShowdowns>> | null,
+      reason: null as string | null
+    }
+  };
+
+  try {
+    showdownSummary.discovery.result = await discoverShowdowns(
+      await buildDefaultDiscoveryDeps()
+    );
+  } catch (error) {
+    showdownSummary.discovery.status = 'error';
+    showdownSummary.discovery.reason = safeReasonCode(
+      error instanceof Error ? error.message : null,
+      'showdown_discovery_failed'
+    );
+    showdownSummary.discovery.result = null;
+    console.warn('[cron] showdown discovery failed', error);
+  }
+
+  try {
+    showdownSummary.settlement.result = await settleEligibleShowdowns(
+      await buildDefaultSettlementDeps()
+    );
+  } catch (error) {
+    showdownSummary.settlement.status = 'error';
+    showdownSummary.settlement.reason = safeReasonCode(
+      error instanceof Error ? error.message : null,
+      'showdown_settlement_failed'
+    );
+    showdownSummary.settlement.result = null;
+    console.warn('[cron] showdown settlement failed', error);
+  }
+
+  return showdownSummary;
+}
+
 async function runCron(request: Request, body: { idempotencyKey?: string; limit?: number }) {
   const { env, response } = authorizeCronRequest(request);
   if (response) {
@@ -96,13 +145,16 @@ async function runCron(request: Request, body: { idempotencyKey?: string; limit?
       );
     }
 
+    const showdowns = await runShowdownLifecycle();
+
     return NextResponse.json({
       status: result.status,
       duplicateBy: result.duplicateBy ?? null,
       source: result.source,
       fallbackReason: result.fallbackReason,
       run: result.run,
-      metrics
+      metrics,
+      showdowns
     });
   } catch (error) {
     return NextResponse.json(

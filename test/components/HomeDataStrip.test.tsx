@@ -29,7 +29,7 @@ describe('HomeDataStrip', () => {
     expect(screen.getByText(/volatility leads/i)).toBeInTheDocument();
   });
 
-  it('marks live cells and the placeholder showdown cell distinctly', () => {
+  it('marks every strip cell as live once showdown data is wired', () => {
     render(<HomeDataStrip {...baseProps} />);
 
     expect(screen.getByText('ACTIVE SIGNALS').closest('[data-strip-cell]')).toHaveAttribute(
@@ -46,7 +46,7 @@ describe('HomeDataStrip', () => {
     );
     expect(screen.getByText('SHOWDOWNS WON').closest('[data-strip-cell]')).toHaveAttribute(
       'data-source',
-      'placeholder'
+      'live'
     );
   });
 

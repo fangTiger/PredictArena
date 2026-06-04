@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getHomeStripData, type HomeDataReaders } from '@/lib/services/homeData';
 import type { AgentSignal } from '@/lib/polymarket/types';
+import type { ShowdownRecord } from '@/lib/persistence/store';
 
 const NOW_MS = 1_700_000_000_000;
 const ONE_HOUR_MS = 60 * 60 * 1000;
@@ -17,6 +18,7 @@ function makeReaders(overrides: Partial<HomeDataReaders> = {}): HomeDataReaders 
       averageEdgeBps: 0,
       totalBondedMicroUsdc: 0
     }),
+    listShowdowns: async () => [],
     readBlockNumber: async () => 0,
     nowMs: () => NOW_MS,
     ...overrides
@@ -180,8 +182,38 @@ describe('getHomeStripData', () => {
     expect(data.blockNumber).toBeNull();
   });
 
-  it('keeps showdowns placeholder values until later chunks wire them', async () => {
-    const data = await getHomeStripData(makeReaders());
+  it('counts settled showdowns and identifies the current leader by wins', async () => {
+    const data = await getHomeStripData(
+      makeReaders({
+        listShowdowns: async () => [
+          createShowdown({ onchainId: 1, status: 'SettledA' }),
+          createShowdown({ onchainId: 2, status: 'SettledA' }),
+          createShowdown({
+            onchainId: 3,
+            status: 'SettledB',
+            agentB: { ...createShowdown().agentB, name: 'momentum' },
+            settledAt: '2026-06-04T06:00:00.000Z',
+            settleTxHash: `0x${'c'.repeat(64)}`,
+            resolvedOutcome: 'NO'
+          }),
+          createShowdown({ onchainId: 4, status: 'Open' })
+        ]
+      })
+    );
+
+    expect(data.showdownsWon).toBe(3);
+    expect(data.showdownsLeaderName).toBe('Volatility');
+  });
+
+  it('falls back to 0 and em dash when showdown reads reject', async () => {
+    const data = await getHomeStripData(
+      makeReaders({
+        listShowdowns: async () => {
+          throw new Error('showdowns down');
+        }
+      })
+    );
+
     expect(data.showdownsWon).toBe(0);
     expect(data.showdownsLeaderName).toBe('—');
   });
@@ -208,4 +240,35 @@ function createResolvedAt(id: string, resolvedAtMs: number, outcomeCorrect: bool
       resolvedAt: new Date(resolvedAtMs).toISOString()
     }
   });
+}
+
+function createShowdown(overrides: Partial<ShowdownRecord> = {}): ShowdownRecord {
+  return {
+    externalId: `0x${'a'.repeat(64)}`,
+    onchainId: 99,
+    marketId: 'market-btc-100k',
+    marketQuestion: 'Will BTC close above $100,000?',
+    agentA: {
+      address: `0x${'1'.repeat(40)}`,
+      name: 'volatility',
+      side: 'YES',
+      probabilityBps: 7200
+    },
+    agentB: {
+      address: `0x${'2'.repeat(40)}`,
+      name: 'momentum',
+      side: 'NO',
+      probabilityBps: 3100
+    },
+    bondPerSideMicroUsdc: 250_000_000,
+    deadline: '2026-06-05T00:00:00.000Z',
+    status: 'SettledA',
+    openedAt: '2026-06-04T00:00:00.000Z',
+    settledAt: '2026-06-05T01:00:00.000Z',
+    openTxHash: `0x${'b'.repeat(64)}`,
+    settleTxHash: `0x${'c'.repeat(64)}`,
+    resolvedOutcome: 'YES',
+    resolvedPriceLabel: 'BTC settled at $102,431',
+    ...overrides
+  };
 }

@@ -1,11 +1,13 @@
 import { readArcLatestBlock } from '@/lib/arc/blockNumber';
-import type { ArenaMetrics } from '@/lib/persistence/store';
+import { getShowdownStore } from '@/lib/persistence/showdowns';
+import type { ArenaMetrics, ShowdownRecord } from '@/lib/persistence/store';
 import { getRuntimeStore } from '@/lib/persistence/store';
 import type { AgentSignal } from '@/lib/polymarket/types';
 
 export interface HomeDataReaders {
   listSignals(): Promise<AgentSignal[]>;
   getMetrics(): Promise<ArenaMetrics>;
+  listShowdowns(): Promise<ShowdownRecord[]>;
   readBlockNumber(): Promise<number>;
   nowMs(): number;
 }
@@ -22,6 +24,7 @@ const EMPTY_METRICS: ArenaMetrics = {
 export const defaultHomeDataReaders: HomeDataReaders = {
   listSignals: () => getRuntimeStore().listSignals(),
   getMetrics: () => getRuntimeStore().getMetrics(),
+  listShowdowns: () => getShowdownStore().listAll(),
   readBlockNumber: () => readArcLatestBlock(),
   nowMs: () => Date.now()
 };
@@ -50,6 +53,7 @@ export async function getHomeStripData(
     readers.getMetrics().catch(() => EMPTY_METRICS),
     readers.readBlockNumber().catch(() => null)
   ]);
+  const showdowns = await readers.listShowdowns().catch((): ShowdownRecord[] => []);
 
   const nowMs = readers.nowMs();
   const activeSignalsDelta = signals.filter((signal) => {
@@ -84,6 +88,7 @@ export async function getHomeStripData(
     thisWeekSignals.length === 0 || priorWeekSignals.length === 0
       ? 0
       : calculateAccuracyBps(thisWeekSignals) / 100 - calculateAccuracyBps(priorWeekSignals) / 100;
+  const { showdownsWon, showdownsLeaderName } = summarizeShowdowns(showdowns);
 
   return {
     activeSignals: metrics.openSignals,
@@ -92,8 +97,8 @@ export async function getHomeStripData(
     usdcBondedDelta24hMicro,
     accuracyBps,
     accuracyDeltaPp,
-    showdownsWon: 0,
-    showdownsLeaderName: '—',
+    showdownsWon,
+    showdownsLeaderName,
     blockNumber
   };
 }
@@ -109,4 +114,43 @@ function calculateAccuracyBps(signals: AgentSignal[]): number {
 
 function isBondedSignal(signal: AgentSignal): boolean {
   return Boolean(signal.arcTxHash);
+}
+
+function summarizeShowdowns(showdowns: ShowdownRecord[]): {
+  showdownsWon: number;
+  showdownsLeaderName: string;
+} {
+  const settled = showdowns.filter(
+    (record) => record.status === 'SettledA' || record.status === 'SettledB'
+  );
+  if (settled.length === 0) {
+    return {
+      showdownsWon: 0,
+      showdownsLeaderName: '—'
+    };
+  }
+
+  const winsByAgent = new Map<string, number>();
+  for (const record of settled) {
+    const winnerName =
+      record.status === 'SettledA' ? record.agentA.name : record.agentB.name;
+    winsByAgent.set(winnerName, (winsByAgent.get(winnerName) ?? 0) + 1);
+  }
+
+  const leader = [...winsByAgent.entries()].sort((left, right) => {
+    if (right[1] !== left[1]) {
+      return right[1] - left[1];
+    }
+
+    return left[0].localeCompare(right[0]);
+  })[0];
+
+  return {
+    showdownsWon: settled.length,
+    showdownsLeaderName: leader ? capitalizeAgentName(leader[0]) : '—'
+  };
+}
+
+function capitalizeAgentName(name: string): string {
+  return name.length === 0 ? name : `${name[0]!.toUpperCase()}${name.slice(1)}`;
 }

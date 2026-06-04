@@ -58,7 +58,6 @@ export function HomeDataStrip({
         label={HOME_COPY.strip.showdowns}
         value={numberFormatter.format(showdownsWon)}
         trend={`${showdownsLeaderName} leads`}
-        source="placeholder"
       />
     </section>
   );
@@ -67,19 +66,17 @@ export function HomeDataStrip({
 function StripCell({
   label,
   value,
-  trend,
-  source
+  trend
 }: {
   label: string;
   value: string;
   trend: string;
-  source?: 'placeholder';
 }) {
   return (
     <div
       className="home-strip-cell"
       data-strip-cell
-      data-source={source ?? 'live'}
+      data-source="live"
       aria-label={`${label} ${value} ${trend}`}
     >
       <p className="home-strip-label">{label}</p>
