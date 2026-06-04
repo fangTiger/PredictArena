@@ -30,14 +30,14 @@
 
 ## 3. ShowdownArena Smart Contract (Plan Chunk 3)
 
-- [ ] 3.1 Write TDD scaffold for ShowdownArena tests (Hardhat + ethers). _Executor: Codex_
-- [ ] 3.2 Implement `openShowdown` (atomic operator-orchestrated open). _Executor: Codex_
-- [ ] 3.3 Cover error paths + atomicity tests. _Executor: Codex_
-- [ ] 3.4 Implement `settleShowdown` with onlyOwner guard. _Executor: Codex_
-- [ ] 3.5 Add view functions: `getShowdown`, `lookupByExternalId`. _Executor: Codex_
-- [ ] 3.6 Verify branch coverage against §4.4.3 invariants. _Executor: Codex_
-- [ ] 3.7 Create viem client wrapper `lib/contracts/showdownArena.ts`. _Executor: Codex_
-- [ ] 3.8 Create idempotent deployment script `scripts/deploy-showdown-arena.ts` with JSON record output. _Executor: Codex_
+- [x] 3.1 Write TDD scaffold for ShowdownArena tests (Hardhat + ethers). _Executor: Codex_
+- [x] 3.2 Implement `openShowdown` (atomic operator-orchestrated open). _Executor: Codex_
+- [x] 3.3 Cover error paths + atomicity tests. _Executor: Codex_
+- [x] 3.4 Implement `settleShowdown` with onlyOwner guard. _Executor: Codex_
+- [x] 3.5 Add view functions: `getShowdown`, `lookupByExternalId`. _Executor: Codex_
+- [x] 3.6 Verify branch coverage against §4.4.3 invariants. _Executor: Codex_
+- [x] 3.7 Create viem client wrapper `lib/contracts/showdownArena.ts`. _Executor: Codex_
+- [x] 3.8 Create idempotent deployment script `scripts/deploy-showdown-arena.ts` with JSON record output. _Executor: Codex_
 
 ## 4. Editorial Homepage (Plan Chunk 4)
 
