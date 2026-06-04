@@ -1,5 +1,4 @@
 import { promises as fs } from 'node:fs';
-import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -10,19 +9,22 @@ async function fileSize(relativePath: string): Promise<number> {
   return stats.size;
 }
 
-async function fileHash(relativePath: string): Promise<string> {
-  const bytes = await fs.readFile(path.join(root, relativePath));
-  return createHash('sha256').update(bytes).digest('hex');
+async function fileExists(relativePath: string): Promise<boolean> {
+  try {
+    await fs.access(path.join(root, relativePath));
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 describe('PredictArena brand assets', () => {
-  it('ships logo and favicon assets from public', async () => {
+  it('ships logo assets from public and a single app-router favicon source', async () => {
     await expect(fileSize('public/predictarena-logo.svg')).resolves.toBeGreaterThan(1_000);
     await expect(fileSize('public/predictarena-logo.png')).resolves.toBeGreaterThan(10_000);
-    await expect(fileSize('public/favicon.ico')).resolves.toBeGreaterThan(1_000);
     await expect(fileSize('public/apple-touch-icon.png')).resolves.toBeGreaterThan(1_000);
     await expect(fileSize('app/favicon.ico')).resolves.toBeGreaterThan(1_000);
-    await expect(fileHash('app/favicon.ico')).resolves.toBe(await fileHash('public/favicon.ico'));
+    await expect(fileExists('public/favicon.ico')).resolves.toBe(false);
   });
 
   it('wires favicon metadata and keeps brand marks in navigation shells', async () => {
