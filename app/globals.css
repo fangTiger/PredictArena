@@ -1819,6 +1819,71 @@ code {
   gap: 10px;
 }
 
+.admin-ops-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.admin-ops-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  align-items: stretch;
+}
+
+.admin-ops-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-ops-list article,
+.admin-ops-card,
+.admin-ops-empty {
+  min-width: 0;
+  padding: 0.82rem;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--surface-muted) 78%, transparent);
+}
+
+.admin-ops-list article,
+.admin-ops-card {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-ops-empty {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-ops-list strong,
+.admin-ops-card strong {
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.admin-ops-list p,
+.admin-ops-list small,
+.admin-ops-card p,
+.admin-ops-card small {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.admin-ops-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.admin-ops-code {
+  overflow-wrap: anywhere;
+}
+
 .intelligence-workspace {
   display: flex;
   flex-direction: column;
@@ -3858,6 +3923,291 @@ code {
 .home-hero,
 .home-data-strip,
 .home-narrative,
+.agent-page-shell,
+.agent-panel {
+  min-width: 0;
+}
+
+.agent-page-shell,
+.agent-panel {
+  display: grid;
+  gap: 18px;
+  color: var(--glass-fg);
+}
+
+.agent-page-head,
+.agent-panel-hero,
+.agent-panel-block,
+.agent-signal-card {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.035));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 20px 48px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.agent-page-head,
+.agent-panel-hero,
+.agent-panel-block,
+.agent-signal-card,
+.agent-card {
+  border-radius: 20px;
+}
+
+.agent-page-head {
+  display: grid;
+  gap: 10px;
+  padding: clamp(1.2rem, 3vw, 1.8rem);
+}
+
+.agent-page-head h1,
+.agent-panel-hero h1,
+.agent-card h2,
+.agent-panel-head h2 {
+  margin: 0;
+  font-family: 'Suisse Intl', 'IBM Plex Sans', 'Avenir Next', sans-serif;
+  letter-spacing: 0;
+}
+
+.agent-page-head h1,
+.agent-panel-hero h1 {
+  font-size: clamp(2.1rem, 5vw, 4rem);
+  line-height: 0.95;
+}
+
+.agent-page-copy,
+.agent-muted-copy {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.68);
+  line-height: 1.65;
+}
+
+.agent-kicker,
+.agent-stat span,
+.agent-panel-stat span,
+.agent-signal-facts dt,
+.agent-timeline-metrics dt {
+  margin: 0;
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+.agent-card-grid,
+.agent-panel-grid,
+.agent-panel-stat-grid,
+.agent-confidence-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-card-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agent-panel-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.agent-card-link {
+  display: block;
+  min-width: 0;
+}
+
+.agent-card {
+  display: grid;
+  gap: 16px;
+  min-height: 100%;
+  padding: 18px;
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.agent-card-link:hover .agent-card {
+  transform: translateY(-2px);
+  border-color: rgba(var(--glass-tint-cyan), 0.34);
+}
+
+.agent-card-head,
+.agent-panel-head,
+.agent-panel-hero {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.agent-card-chip,
+.agent-panel-hero-chip,
+.agent-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 0.34rem 0.62rem;
+  border-radius: 999px;
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.agent-card-chip,
+.agent-panel-hero-chip,
+.agent-pill {
+  color: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.agent-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.agent-stat,
+.agent-panel-stat {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-stat strong,
+.agent-panel-stat strong,
+.agent-signal-facts dd,
+.agent-timeline-metrics dd {
+  margin: 0;
+  font-family: 'IBM Plex Mono', 'SFMono-Regular', monospace;
+  font-size: clamp(1rem, 1.9vw, 1.25rem);
+  color: rgba(255, 255, 255, 0.92);
+  overflow-wrap: anywhere;
+}
+
+.agent-panel-hero {
+  padding: 22px;
+}
+
+.agent-panel-block,
+.agent-signal-card {
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+}
+
+.agent-panel-stat-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agent-confidence-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.agent-panel-stat-accent strong {
+  color: var(--color-yes);
+}
+
+.agent-panel-stat-bonded strong {
+  color: #ffb86c;
+}
+
+.agent-panel-stat-win strong {
+  color: var(--color-success);
+}
+
+.agent-panel-stat-loss strong {
+  color: var(--color-no);
+}
+
+.agent-signal-card-title,
+.agent-timeline-main strong {
+  font-size: 1rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.agent-signal-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-pill-yes {
+  color: var(--color-yes);
+}
+
+.agent-pill-no {
+  color: var(--color-no);
+}
+
+.agent-signal-facts,
+.agent-timeline-metrics {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+}
+
+.agent-signal-facts div,
+.agent-timeline-metrics div {
+  display: grid;
+  gap: 6px;
+}
+
+.agent-timeline {
+  display: grid;
+  gap: 12px;
+}
+
+.agent-timeline-row {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.agent-timeline-main {
+  display: grid;
+  gap: 10px;
+}
+
+@media (max-width: 1100px) {
+  .agent-card-grid,
+  .agent-panel-grid,
+  .agent-panel-stat-grid,
+  .agent-confidence-grid,
+  .agent-signal-facts,
+  .agent-timeline-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .agent-card-grid,
+  .agent-panel-grid,
+  .agent-panel-stat-grid,
+  .agent-confidence-grid,
+  .agent-stat-grid,
+  .agent-signal-facts,
+  .agent-timeline-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-card-head,
+  .agent-panel-head,
+  .agent-panel-hero {
+    flex-direction: column;
+  }
+}
 .home-transition-footer {
   padding-left: 48px;
   padding-right: 48px;

@@ -86,11 +86,11 @@
 
 ## 9. /agents + /admin Sub-pages (Plan Chunk 9)
 
-- [ ] 9.1 Build `/agents` list page using `buildAgentReputationProfile` (real field names: `generatedSignals`, `totalBondedMicroUsdc`, `accuracyBps`). _Executor: Codex_
-- [ ] 9.2 Build `/agents/[agentId]` drill-down with `AgentReputationPanel`. _Executor: Codex_
-- [ ] 9.3 Fill `/admin/control-room` with operator/Arc readiness read model. _Executor: Codex_
-- [ ] 9.4 Fill `/admin/receipts` with `buildAutonomousRunReceipt` list. _Executor: Codex_
-- [ ] 9.5 Fill `/admin/health` with operator health read model. _Executor: Codex_
+- [x] 9.1 Build `/agents` list page using `buildAgentReputationProfile` (real field names: `generatedSignals`, `totalBondedMicroUsdc`, `accuracyBps`). _Executor: Codex_
+- [x] 9.2 Build `/agents/[agentId]` drill-down with `AgentReputationPanel`. _Executor: Codex_
+- [x] 9.3 Fill `/admin/control-room` with operator/Arc readiness read model. _Executor: Codex_
+- [x] 9.4 Fill `/admin/receipts` with `buildAutonomousRunReceipt` list. _Executor: Codex_
+- [x] 9.5 Fill `/admin/health` with operator health read model. _Executor: Codex_
 
 ## 10. Polish, E2E, Docs, Deploy (Plan Chunk 10)
 

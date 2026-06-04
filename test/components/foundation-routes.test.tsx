@@ -59,7 +59,6 @@ vi.mock('@/lib/services/homeData', () => ({
 import HomePage from '@/app/page';
 import ArenaLayout from '@/app/arena/layout';
 import AgentsLayout from '@/app/agents/layout';
-import AgentsPage from '@/app/agents/page';
 import MyLayout from '@/app/my/layout';
 import MyPage from '@/app/my/page';
 import AdminLayout from '@/app/admin/layout';
@@ -120,12 +119,16 @@ describe('foundation routes', () => {
     expect(screen.getByText('arena child')).toBeInTheDocument();
   });
 
-  it('renders /agents and /my placeholder pages inside the glass layout', async () => {
+  it('wraps /agents and /my routes inside the glass layout', async () => {
     routeState.pathname = '/agents';
-    const { rerender } = render(<AgentsLayout>{await AgentsPage()}</AgentsLayout>);
+    const { rerender, container } = render(
+      <AgentsLayout>
+        <div>agents child</div>
+      </AgentsLayout>
+    );
 
-    expect(screen.getByRole('heading', { level: 1, name: /agent dossiers/i })).toBeInTheDocument();
-    expect(screen.getByText(/glass neon placeholder/i)).toBeInTheDocument();
+    expect(container.firstChild).toHaveClass('glass-page');
+    expect(screen.getByText('agents child')).toBeInTheDocument();
 
     routeState.pathname = '/my';
     rerender(<MyLayout>{await MyPage()}</MyLayout>);
