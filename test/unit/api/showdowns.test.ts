@@ -46,13 +46,17 @@ function createRecord(overrides: Partial<ShowdownRecord> = {}): ShowdownRecord {
       address: `0x${'1'.repeat(40)}`,
       name: 'volatility',
       side: 'YES',
-      probabilityBps: 7200
+      probabilityBps: 7200,
+      confidence: 'HIGH',
+      thesis: 'Volatility expects YES with a 72.00% model line.'
     },
     agentB: {
       address: `0x${'2'.repeat(40)}`,
       name: 'momentum',
       side: 'NO',
-      probabilityBps: 3100
+      probabilityBps: 3100,
+      confidence: 'MEDIUM',
+      thesis: 'Momentum expects NO with a 31.00% model line.'
     },
     bondPerSideMicroUsdc: 250_000_000,
     deadline: '2026-06-05T12:00:00.000Z',
@@ -173,7 +177,15 @@ describe('showdowns API routes', () => {
     expect(activePayload.showdowns).toHaveLength(1);
     expect(activePayload.showdowns[0]).toMatchObject({
       onchainId: 1,
-      bondMicroUsdc: '250000000'
+      bondMicroUsdc: '250000000',
+      agentA: {
+        confidence: 'HIGH',
+        thesis: 'Volatility expects YES with a 72.00% model line.'
+      },
+      agentB: {
+        confidence: 'MEDIUM',
+        thesis: 'Momentum expects NO with a 31.00% model line.'
+      }
     });
     expect(resolvingPayload.showdowns).toHaveLength(1);
     expect(resolvingPayload.showdowns[0].onchainId).toBe(2);

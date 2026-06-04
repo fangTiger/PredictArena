@@ -97,12 +97,16 @@ export interface ShowdownRecord {
     name: AgentSignal['agentName'];
     side: Exclude<AgentSignal['side'], 'AVOID'>;
     probabilityBps: number;
+    confidence?: AgentSignal['confidence'];
+    thesis?: string;
   };
   agentB: {
     address: `0x${string}`;
     name: AgentSignal['agentName'];
     side: Exclude<AgentSignal['side'], 'AVOID'>;
     probabilityBps: number;
+    confidence?: AgentSignal['confidence'];
+    thesis?: string;
   };
   bondPerSideMicroUsdc: number;
   deadline: string;

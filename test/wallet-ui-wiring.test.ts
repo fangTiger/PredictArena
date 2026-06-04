@@ -5,9 +5,10 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();
 
 describe('wallet-funded follow UI wiring', () => {
-  it('assembles the editorial home via dedicated components while preserving wallet-follow wiring elsewhere', async () => {
-    const [rootPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls, globalsCss] = await Promise.all([
+  it('assembles the editorial home via dedicated components while rewiring arena around showdowns', async () => {
+    const [rootPage, arenaPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls, globalsCss] = await Promise.all([
       fs.readFile(path.join(root, 'app/page.tsx'), 'utf8'),
+      fs.readFile(path.join(root, 'app/arena/page.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/PageShell.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/AdminShell.tsx'), 'utf8'),
@@ -28,10 +29,17 @@ describe('wallet-funded follow UI wiring', () => {
     expect(globalsCss).toMatch(
       /@media\s*\(max-width:\s*560px\)\s*\{[\s\S]*?\.home-hero-subtitle\s*\{[\s\S]*?text-wrap:\s*balance;/m
     );
+    expect(arenaPage).toContain('return <ArenaDashboard />');
+    expect(arenaPage).not.toContain('getRuntimeStore');
+    expect(arenaPage).not.toContain('fetchCandidateMarkets');
+    expect(arenaDashboard).toContain('ShowdownGrid');
+    expect(arenaDashboard).toContain('PendingFollowsRow');
+    expect(arenaDashboard).toContain('useSWR');
+    expect(arenaDashboard).toContain('/api/showdowns?status=all&limit=50');
+    expect(arenaDashboard).toContain('refreshInterval: 30000');
     expect(arenaDashboard).toContain('getWalletFollowStep');
     expect(arenaDashboard).toContain('selectWalletFundableSignal');
     expect(arenaDashboard).toContain('runAgentsAndFollowSignal');
-    expect(arenaDashboard).toContain('topbar-wallet-slot');
     expect(pageShell).toContain('WalletConnectButton');
     expect(pageShell).toContain('DisplayControls');
     expect(pageShell).toContain('href="/agents"');
@@ -42,14 +50,34 @@ describe('wallet-funded follow UI wiring', () => {
     expect(displayControls).toContain('Toggle theme');
     expect(displayControls).toContain('中文');
     expect(arenaDashboard).toContain('/api/wallet/follows');
-    expect(arenaDashboard).toContain('Follow with Wallet');
-    expect(arenaDashboard).toContain('Wallet Funding');
-    expect(arenaDashboard).toContain('Current Wallet');
-    expect(arenaDashboard).toContain('walletFollows');
-    expect(arenaDashboard).not.toContain('Agent Control Room');
-    expect(arenaDashboard).not.toContain('Agent custody');
-    expect(arenaDashboard).not.toContain('Wallet Readiness');
-    expect(arenaDashboard).not.toContain('Batch Commit');
-    expect(arenaDashboard).not.toContain('Commit Eligible Signals');
+    expect(arenaDashboard).not.toContain('WalletConnectButton');
+    expect(arenaDashboard).not.toContain('topbar-wallet-slot');
+    expect(arenaDashboard).not.toContain('Market Radar');
+    expect(arenaDashboard).not.toContain('Signal Board');
+    expect(arenaDashboard).not.toContain('Watchlist');
+    expect(arenaDashboard).not.toContain('Saved Filter');
+    expect(arenaDashboard).not.toContain('Alert');
+    expect(arenaDashboard).not.toContain('Daily Queue');
+    expect(arenaDashboard).not.toContain('/intelligence');
+    expect(arenaDashboard).not.toContain('/autonomy/runs/');
+    expect(arenaDashboard).not.toContain('/signals/');
+    expect(arenaDashboard).not.toContain('/admin/');
+  });
+
+  it('hydrates wallet follow summaries before filtering or submitting another wallet follow', async () => {
+    const arenaDashboard = await fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8');
+
+    expect(arenaDashboard).toContain('/api/wallet/${address}/summary');
+    expect(arenaDashboard).toContain('refreshWalletFollowSummary');
+    expect(arenaDashboard).toContain('wallet_follow_duplicate');
+
+    const duplicateGuardIndex = arenaDashboard.indexOf('wallet_follow_duplicate');
+    const commitIndex = arenaDashboard.indexOf('await commitArenaSignal({');
+    expect(duplicateGuardIndex).toBeGreaterThanOrEqual(0);
+    expect(commitIndex).toBeGreaterThan(duplicateGuardIndex);
+
+    const summaryRefreshIndex = arenaDashboard.indexOf('await refreshWalletFollowSummary(address');
+    expect(summaryRefreshIndex).toBeGreaterThanOrEqual(0);
+    expect(commitIndex).toBeGreaterThan(summaryRefreshIndex);
   });
 });

@@ -166,9 +166,27 @@ describe('discoverShowdowns', () => {
     const result = await discoverShowdowns(
       makeDeps({
         showdownStore,
-        listActiveSignals: async () => [
-          createSignal({ id: 'vol', agentName: 'volatility', side: 'YES', agentProbabilityBps: 7200 }),
-          createSignal({ id: 'mom', agentName: 'momentum', side: 'NO', agentProbabilityBps: 3100 })
+      listActiveSignals: async () => [
+          createSignal({
+            id: 'vol',
+            agentName: 'volatility',
+            side: 'YES',
+            confidence: 'HIGH',
+            agentProbabilityBps: 7200,
+            marketPriceBps: 5200,
+            edgeBps: 2000,
+            kellyBps: 300
+          }),
+          createSignal({
+            id: 'mom',
+            agentName: 'momentum',
+            side: 'NO',
+            confidence: 'MEDIUM',
+            agentProbabilityBps: 3100,
+            marketPriceBps: 6900,
+            edgeBps: 3800,
+            kellyBps: 250
+          })
         ]
       })
     );
@@ -233,8 +251,26 @@ describe('discoverShowdowns', () => {
         showdownStore,
         openOnChain,
         listActiveSignals: async () => [
-          createSignal({ id: 'vol', agentName: 'volatility', side: 'YES', agentProbabilityBps: 7200 }),
-          createSignal({ id: 'mom', agentName: 'momentum', side: 'NO', agentProbabilityBps: 3100 })
+          createSignal({
+            id: 'vol',
+            agentName: 'volatility',
+            side: 'YES',
+            confidence: 'HIGH',
+            agentProbabilityBps: 7200,
+            marketPriceBps: 5200,
+            edgeBps: 2000,
+            kellyBps: 300
+          }),
+          createSignal({
+            id: 'mom',
+            agentName: 'momentum',
+            side: 'NO',
+            confidence: 'MEDIUM',
+            agentProbabilityBps: 3100,
+            marketPriceBps: 6900,
+            edgeBps: 3800,
+            kellyBps: 250
+          })
         ]
       })
     );
@@ -254,6 +290,22 @@ describe('discoverShowdowns', () => {
       resolvedOutcome: null,
       resolvedPriceLabel: null
     });
+    expect([record.agentA, record.agentB]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          confidence: 'HIGH',
+          name: 'volatility',
+          thesis:
+            'The volatility agent expects the market to settle YES. It priced 72% conviction against a 52% market line, producing 20% edge and 3% capped Kelly. No additional risk flags were raised.'
+        }),
+        expect.objectContaining({
+          confidence: 'MEDIUM',
+          name: 'momentum',
+          thesis:
+            'The momentum agent expects the market to settle NO. It priced 31% conviction against a 69% market line, producing 38% edge and 2.5% capped Kelly. No additional risk flags were raised.'
+        })
+      ])
+    );
     expect(record.deadline).toBe('2026-06-05T12:00:00.000Z');
   });
 

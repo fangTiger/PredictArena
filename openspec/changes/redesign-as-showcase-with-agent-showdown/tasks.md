@@ -69,12 +69,12 @@
 
 ## 7. Arena UI Rewrite (Plan Chunk 7)
 
-- [ ] 7.1 TDD `ShowdownCard` component (Open + Settled visuals). _Executor: Codex_
-- [ ] 7.2 TDD `ShowdownGrid` component (active + settled sections + Show more). _Executor: Codex_
-- [ ] 7.3 Install `swr@^2` dependency. _Executor: Codex_
-- [ ] 7.4 Rewrite `components/arena-dashboard.tsx` around ShowdownGrid (drop intelligence/watchlist/etc; preserve Run Agents + follow flow). _Executor: Codex_
-- [ ] 7.5 Add `PendingFollowsRow` (connected-user chip strip). _Executor: Codex_
-- [ ] 7.6 Update `app/arena/page.tsx` to drop legacy props and mount new dashboard cleanly. _Executor: Codex_
+- [x] 7.1 TDD `ShowdownCard` component (Open + Settled visuals). _Executor: Codex_
+- [x] 7.2 TDD `ShowdownGrid` component (active + settled sections + Show more). _Executor: Codex_
+- [x] 7.3 Install `swr@^2` dependency. _Executor: Codex_
+- [x] 7.4 Rewrite `components/arena-dashboard.tsx` around ShowdownGrid (drop intelligence/watchlist/etc; preserve Run Agents + follow flow). _Executor: Codex_
+- [x] 7.5 Add `PendingFollowsRow` (connected-user chip strip). _Executor: Codex_
+- [x] 7.6 Update `app/arena/page.tsx` to drop legacy props and mount new dashboard cleanly. _Executor: Codex_
 
 ## 8. /my Wallet-Bound Dashboard (Plan Chunk 8)
 

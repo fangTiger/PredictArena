@@ -25,9 +25,10 @@ describe('PredictArena brand assets', () => {
     await expect(fileHash('app/favicon.ico')).resolves.toBe(await fileHash('public/favicon.ico'));
   });
 
-  it('wires favicon metadata and uses the logo mark in navigation', async () => {
-    const [layout, pageShell, arenaDashboard] = await Promise.all([
+  it('wires favicon metadata and keeps brand marks in navigation shells', async () => {
+    const [layout, arenaLayout, pageShell, arenaDashboard] = await Promise.all([
       fs.readFile(path.join(root, 'app/layout.tsx'), 'utf8'),
+      fs.readFile(path.join(root, 'app/arena/layout.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/PageShell.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8')
     ]);
@@ -35,8 +36,9 @@ describe('PredictArena brand assets', () => {
     expect(layout).toContain('/favicon.ico?v=predictarena-logo');
     expect(layout).toContain('/predictarena-logo.png');
     expect(layout).toContain('/apple-touch-icon.png');
+    expect(arenaLayout).toContain('TopNav');
+    expect(arenaLayout).toContain('variant="glass"');
     expect(pageShell).toContain('aria-hidden="true"');
-    expect(arenaDashboard).toContain('aria-hidden="true"');
     expect(pageShell).not.toContain('brand-mark">PA</span>');
     expect(arenaDashboard).not.toContain('brand-mark">PA</span>');
   });

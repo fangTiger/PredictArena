@@ -65,20 +65,27 @@ function capitalizeAgentName(name: string): string {
   return name.length === 0 ? name : `${name[0]!.toUpperCase()}${name.slice(1)}`;
 }
 
+function fallbackAgentThesis(agent: ShowdownRecord['agentA'] | ShowdownRecord['agentB']): string {
+  return `${capitalizeAgentName(agent.name)} expects ${agent.side} with a ${(agent.probabilityBps / 100).toFixed(2)}% model line.`;
+}
+
+function serializeAgent(agent: ShowdownRecord['agentA'] | ShowdownRecord['agentB']) {
+  return {
+    ...agent,
+    name: capitalizeAgentName(agent.name),
+    confidence: agent.confidence ?? 'MEDIUM',
+    thesis: agent.thesis ?? fallbackAgentThesis(agent)
+  };
+}
+
 function serializeShowdown(record: ShowdownRecord) {
   return {
     id: record.externalId,
     onchainId: record.onchainId,
     marketId: record.marketId,
     marketQuestion: record.marketQuestion,
-    agentA: {
-      ...record.agentA,
-      name: capitalizeAgentName(record.agentA.name)
-    },
-    agentB: {
-      ...record.agentB,
-      name: capitalizeAgentName(record.agentB.name)
-    },
+    agentA: serializeAgent(record.agentA),
+    agentB: serializeAgent(record.agentB),
     bondMicroUsdc: String(record.bondPerSideMicroUsdc),
     deadline: record.deadline,
     status: record.status,

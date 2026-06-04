@@ -129,7 +129,14 @@ export async function recordWalletFollowReceipt({
   }
 
   const existingFollows = await store.listWalletFollows(signalId);
-  if (existingFollows.some((follow) => follow.txHash.toLowerCase() === txHash.toLowerCase())) {
+  const normalizedWalletAddress = getAddress(walletAddress);
+  if (
+    existingFollows.some(
+      (follow) =>
+        follow.txHash.toLowerCase() === txHash.toLowerCase() ||
+        isAddressEqual(follow.walletAddress, normalizedWalletAddress)
+    )
+  ) {
     throw new Error('wallet_follow_duplicate');
   }
 
@@ -143,7 +150,6 @@ export async function recordWalletFollowReceipt({
     throw new Error('wallet_follow_event_missing');
   }
 
-  const normalizedWalletAddress = getAddress(walletAddress);
   if (!isAddressEqual(event.agent, normalizedWalletAddress)) {
     throw new Error('wallet_follow_sender_mismatch');
   }

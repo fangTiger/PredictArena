@@ -3,6 +3,7 @@ import { privateKeyToAccount } from 'viem/accounts';
 import type { AgentSignal } from '@/lib/polymarket/types';
 import type { ShowdownStore } from '@/lib/persistence/showdowns';
 import type { ShowdownRecord } from '@/lib/persistence/store';
+import { buildSignalExplanation } from '@/lib/utils/signal';
 
 export type DiscoverySkipReason =
   | 'no-active-signals'
@@ -184,13 +185,17 @@ export async function discoverShowdowns(deps: DiscoveryDeps): Promise<DiscoveryR
         address: selected.agentA.address,
         name: selected.agentA.signal.agentName,
         side: toShowdownSide(selected.agentA.signal.side),
-        probabilityBps: selected.agentA.signal.agentProbabilityBps
+        probabilityBps: selected.agentA.signal.agentProbabilityBps,
+        confidence: selected.agentA.signal.confidence,
+        thesis: buildSignalExplanation(selected.agentA.signal)
       },
       agentB: {
         address: selected.agentB.address,
         name: selected.agentB.signal.agentName,
         side: toShowdownSide(selected.agentB.signal.side),
-        probabilityBps: selected.agentB.signal.agentProbabilityBps
+        probabilityBps: selected.agentB.signal.agentProbabilityBps,
+        confidence: selected.agentB.signal.confidence,
+        thesis: buildSignalExplanation(selected.agentB.signal)
       },
       bondPerSideMicroUsdc: Number(deps.bondPerSideMicroUsdc),
       deadline: new Date(Number(deadlineUnix) * 1000).toISOString(),
