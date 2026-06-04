@@ -41,13 +41,13 @@
 
 ## 4. Editorial Homepage (Plan Chunk 4)
 
-- [ ] 4.1 Lock copy constants in `lib/config/homeCopy.ts`. _Executor: Codex_
-- [ ] 4.2 TDD `HomeHero` component (tagline + H1 + subtitle). _Executor: Codex_
-- [ ] 4.3 TDD `HomeDataStrip` component (4-column KPI grid). _Executor: Codex_
-- [ ] 4.4 TDD `HomeNarrative` component (Premise + How to Watch). _Executor: Codex_
-- [ ] 4.5 Build `lib/arc/blockNumber.ts` + DI-friendly `getHomeStripData` in `lib/services/homeData.ts`. _Executor: Codex_
-- [ ] 4.6 Replace `app/page.tsx` placeholder with full RSC home. _Executor: Codex_
-- [ ] 4.7 Add `HomeTransitionFooter` (Editorial→Glass bridge per Appendix A). _Executor: Codex_
+- [x] 4.1 Lock copy constants in `lib/config/homeCopy.ts`. _Executor: Codex_
+- [x] 4.2 TDD `HomeHero` component (tagline + H1 + subtitle). _Executor: Codex_
+- [x] 4.3 TDD `HomeDataStrip` component (4-column KPI grid). _Executor: Codex_
+- [x] 4.4 TDD `HomeNarrative` component (Premise + How to Watch). _Executor: Codex_
+- [x] 4.5 Build `lib/arc/blockNumber.ts` + DI-friendly `getHomeStripData` in `lib/services/homeData.ts`. _Executor: Codex_
+- [x] 4.6 Replace `app/page.tsx` placeholder with full RSC home. _Executor: Codex_
+- [x] 4.7 Add `HomeTransitionFooter` (Editorial→Glass bridge per Appendix A). _Executor: Codex_
 
 ## 5. Showdown Backend Part 1 (Plan Chunk 5)
 

@@ -10,7 +10,18 @@ const routeState = vi.hoisted(() => ({
   cookieSet: vi.fn(),
   redirect: vi.fn((destination: string) => {
     throw new Error(`REDIRECT:${destination}`);
-  })
+  }),
+  stripData: {
+    activeSignals: 12,
+    activeSignalsDelta: 3,
+    usdcBondedMicro: 24_580_000_000n,
+    usdcBondedDelta24hMicro: 1_200_000_000n,
+    accuracyBps: 6840,
+    accuracyDeltaPp: 2.1,
+    showdownsWon: 0,
+    showdownsLeaderName: '—',
+    blockNumber: 8_412_390
+  }
 }));
 
 vi.mock('next/navigation', () => ({
@@ -41,6 +52,10 @@ vi.mock('@/components/WalletConnectButton', () => ({
   )
 }));
 
+vi.mock('@/lib/services/homeData', () => ({
+  getHomeStripData: vi.fn(async () => routeState.stripData)
+}));
+
 import HomePage from '@/app/page';
 import ArenaLayout from '@/app/arena/layout';
 import AgentsLayout from '@/app/agents/layout';
@@ -68,7 +83,7 @@ describe('foundation routes', () => {
     process.env.ADMIN_ACCESS_TOKEN = originalAccessToken;
   });
 
-  it('renders the editorial home placeholder instead of redirecting to /arena', async () => {
+  it('renders the editorial home instead of redirecting to /arena', async () => {
     routeState.pathname = '/';
 
     render(await HomePage());
@@ -79,7 +94,15 @@ describe('foundation routes', () => {
         name: /ai agents, betting with proof\./i
       })
     ).toBeInTheDocument();
-    expect(screen.getByText(/showcase landing placeholder/i)).toBeInTheDocument();
+    expect(screen.getByText(/live on arc testnet/i)).toBeInTheDocument();
+    expect(screen.getByText(/block 8,412,390/i)).toBeInTheDocument();
+    expect(screen.getByText('ACTIVE SIGNALS')).toBeInTheDocument();
+    expect(screen.getByText('USDC BONDED')).toBeInTheDocument();
+    expect(screen.getByText('AGENT ACCURACY')).toBeInTheDocument();
+    expect(screen.getByText('SHOWDOWNS WON')).toBeInTheDocument();
+    expect(screen.getByText('The Premise')).toBeInTheDocument();
+    expect(screen.getByText('How to Watch')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /enter arena/i })).toHaveAttribute('href', '/arena');
     expect(routeState.redirect).not.toHaveBeenCalled();
   });
 

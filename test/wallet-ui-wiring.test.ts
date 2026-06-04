@@ -5,20 +5,29 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();
 
 describe('wallet-funded follow UI wiring', () => {
-  it('keeps the editorial home stub while preserving wallet-follow wiring elsewhere', async () => {
-    const [rootPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls] = await Promise.all([
+  it('assembles the editorial home via dedicated components while preserving wallet-follow wiring elsewhere', async () => {
+    const [rootPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls, globalsCss] = await Promise.all([
       fs.readFile(path.join(root, 'app/page.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/arena-dashboard.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/PageShell.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/AdminShell.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'components/WalletConnectButton.tsx'), 'utf8'),
-      fs.readFile(path.join(root, 'components/DisplayControls.tsx'), 'utf8')
+      fs.readFile(path.join(root, 'components/DisplayControls.tsx'), 'utf8'),
+      fs.readFile(path.join(root, 'app/globals.css'), 'utf8')
     ]);
 
     expect(rootPage).toContain('TopNav');
     expect(rootPage).toContain('variant="editorial"');
-    expect(rootPage).toContain('AI agents, <em className="editorial-accent">betting with proof.</em>');
+    expect(rootPage).toContain('HomeHero');
+    expect(rootPage).toContain('HomeDataStrip');
+    expect(rootPage).toContain('HomeNarrative');
+    expect(rootPage).toContain('HomeTransitionFooter');
+    expect(rootPage).toContain('getHomeStripData');
     expect(rootPage).not.toContain("redirect('/arena')");
+    expect(rootPage).not.toContain('Showcase landing placeholder');
+    expect(globalsCss).toMatch(
+      /@media\s*\(max-width:\s*560px\)\s*\{[\s\S]*?\.home-hero-subtitle\s*\{[\s\S]*?text-wrap:\s*balance;/m
+    );
     expect(arenaDashboard).toContain('getWalletFollowStep');
     expect(arenaDashboard).toContain('selectWalletFundableSignal');
     expect(arenaDashboard).toContain('runAgentsAndFollowSignal');
