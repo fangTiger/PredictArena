@@ -87,6 +87,34 @@ export interface WalletFollowRecord {
   followedAt: string;
 }
 
+export interface ShowdownRecord {
+  externalId: `0x${string}`;
+  onchainId: number;
+  marketId: string;
+  marketQuestion: string;
+  agentA: {
+    address: `0x${string}`;
+    name: AgentSignal['agentName'];
+    side: Exclude<AgentSignal['side'], 'AVOID'>;
+    probabilityBps: number;
+  };
+  agentB: {
+    address: `0x${string}`;
+    name: AgentSignal['agentName'];
+    side: Exclude<AgentSignal['side'], 'AVOID'>;
+    probabilityBps: number;
+  };
+  bondPerSideMicroUsdc: number;
+  deadline: string;
+  status: 'Open' | 'SettledA' | 'SettledB';
+  openedAt: string;
+  settledAt: string | null;
+  openTxHash: `0x${string}`;
+  settleTxHash: `0x${string}` | null;
+  resolvedOutcome: 'YES' | 'NO' | null;
+  resolvedPriceLabel: string | null;
+}
+
 export interface ArenaState {
   latestScan?: LatestScanState;
   markets: ParsedCryptoMarket[];

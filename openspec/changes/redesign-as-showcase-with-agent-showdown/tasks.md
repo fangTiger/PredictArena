@@ -51,10 +51,10 @@
 
 ## 5. Showdown Backend Part 1 (Plan Chunk 5)
 
-- [ ] 5.1 Add `ShowdownRecord` type to `lib/persistence/store.ts`. _Executor: Codex_
-- [ ] 5.2 Implement `ShowdownStore` facade + local JSON store + Supabase stub. _Executor: Codex_
-- [ ] 5.3 Implement `discoverShowdowns` service (algorithm per §4.5.1, including tie-break). _Executor: Codex_
-- [ ] 5.4 Cover discovery skip reasons + budget + operator-gas paths in tests. _Executor: Codex_
+- [x] 5.1 Add `ShowdownRecord` type to `lib/persistence/store.ts`. _Executor: Codex_
+- [x] 5.2 Implement `ShowdownStore` facade + local JSON store + Supabase stub. _Executor: Codex_
+- [x] 5.3 Implement `discoverShowdowns` service (algorithm per §4.5.1, including tie-break). _Executor: Codex_
+- [x] 5.4 Cover discovery skip reasons + budget + operator-gas paths in tests. _Executor: Codex_
 
 ## 6. Showdown Backend Part 2 (Plan Chunk 6)
 
