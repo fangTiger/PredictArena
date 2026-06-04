@@ -33,9 +33,14 @@ interface WalletFollowResponse {
   reason?: string;
 }
 
-interface WalletFollowSummaryItem extends WalletFollowRecord {
+interface WalletFollowSummaryItem extends Partial<WalletFollowRecord> {
+  id: string;
+  signalId: string;
+  walletAddress: `0x${string}`;
   marketQuestion: string;
-  status: 'confirmed';
+  status: 'pending' | 'confirmed' | 'resolved-win' | 'resolved-loss';
+  followTxHash?: `0x${string}`;
+  bondedMicroUsdc?: string;
 }
 
 interface WalletSummaryResponse {
@@ -108,7 +113,13 @@ function getWalletSummaryKey(address: string) {
 
 function toWalletFollowRecords(payload: WalletSummaryResponse | null | undefined): WalletFollowRecord[] {
   const follows = payload?.walletFollows ?? payload?.follows ?? [];
-  return follows.map(({ marketQuestion: _marketQuestion, status: _status, ...follow }) => follow);
+  return follows
+    .map(({ marketQuestion: _marketQuestion, status: _status, followTxHash, bondedMicroUsdc, ...follow }) => ({
+      ...follow,
+      txHash: follow.txHash ?? followTxHash,
+      stakeMicroUsdc: follow.stakeMicroUsdc ?? (bondedMicroUsdc ? Number(bondedMicroUsdc) : 0)
+    }))
+    .filter((follow): follow is WalletFollowRecord => Boolean(follow.txHash));
 }
 
 function hasWalletFollowForSignal(

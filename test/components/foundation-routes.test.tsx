@@ -130,8 +130,8 @@ describe('foundation routes', () => {
     routeState.pathname = '/my';
     rerender(<MyLayout>{await MyPage()}</MyLayout>);
 
-    expect(screen.getByRole('heading', { level: 1, name: /wallet-bound record/i })).toBeInTheDocument();
-    expect(screen.getByText(/personal dashboard placeholder/i)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: /connect to enter my/i })).toBeInTheDocument();
+    expect(screen.getByText(/wallet-bound record/i)).toBeInTheDocument();
   });
 
   it('redirects unauthenticated /admin requests to /admin/login', async () => {

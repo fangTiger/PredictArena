@@ -389,8 +389,14 @@ describe('wallet-funded follows', () => {
     });
   });
 
-  it('GET /api/wallet/[address]/summary returns confirmed follows for only the requested wallet without secrets', async () => {
-    const { signal, store } = await createStoreWithSignal();
+  it('GET /api/wallet/[address]/summary returns serialized wallet summary for only the requested wallet without secrets', async () => {
+    const { signal, store } = await createStoreWithSignal(
+      createSignal({
+        status: 'committed',
+        arcTxHash: FOLLOW_TX_HASH,
+        updatedAt: '2026-05-20T00:01:00.000Z'
+      })
+    );
     const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
     setRuntimeStoreForTests(store);
     vi.stubEnv('VOL_AGENT_PRIVATE_KEY', '0x9999999999999999999999999999999999999999999999999999999999999999');
@@ -420,35 +426,55 @@ describe('wallet-funded follows', () => {
 
     expect(response.status).toBe(200);
     expect(payload).toMatchObject({
-      walletAddress: expect.stringMatching(/^0x[0-9A-Fa-f]{40}$/),
+      walletAddress: FOLLOW_WALLET,
+      usdcBalanceMicro: '0',
+      usdcAllowanceMicro: '0',
+      arcChainSynced: true,
       follows: [
         {
           signalId: signal.id,
+          marketId: signal.marketId,
           marketQuestion: signal.marketQuestion,
+          side: 'YES',
+          bondedMicroUsdc: `${signal.stakeMicroUsdc}`,
+          followTxHash: FOLLOW_TX_HASH,
           status: 'confirmed',
           walletAddress: FOLLOW_WALLET,
-          txHash: FOLLOW_TX_HASH,
           followedAt: '2026-05-20T00:01:00.000Z',
-          stakeMicroUsdc: signal.stakeMicroUsdc,
-          agentName: signal.agentName
+          resolvedAt: null,
+          payoutMicroUsdc: null
         }
       ],
       walletFollows: [
         {
           signalId: signal.id,
-          marketQuestion: signal.marketQuestion,
-          status: 'confirmed',
-          walletAddress: FOLLOW_WALLET,
-          txHash: FOLLOW_TX_HASH
+          followTxHash: FOLLOW_TX_HASH
         }
-      ]
+      ],
+      txHistory: [
+        {
+          txHash: FOLLOW_TX_HASH,
+          kind: 'follow-commit',
+          amountMicroUsdc: `${signal.stakeMicroUsdc}`,
+          status: 'success'
+        }
+      ],
+      cumulativeBondedMicro: `${signal.stakeMicroUsdc}`,
+      cumulativePayoutMicro: '0',
+      currentNetPnlMicro: `-${signal.stakeMicroUsdc}`
+    });
+    expect(payload.walletFollows[0]).toMatchObject({
+      followTxHash: payload.follows[0].followTxHash,
+      txHash: payload.follows[0].followTxHash,
+      bondedMicroUsdc: payload.follows[0].bondedMicroUsdc,
+      stakeMicroUsdc: signal.stakeMicroUsdc
     });
     expect(JSON.stringify(payload)).not.toContain(OTHER_WALLET);
     expect(JSON.stringify(payload)).not.toContain('PRIVATE_KEY');
     expect(JSON.stringify(payload)).not.toContain('999999');
   });
 
-  it('GET /api/wallet/[address]/summary dedupes historical follows for the same wallet and signal', async () => {
+  it('GET /api/wallet/[address]/summary keeps multiple follows and orders them by followedAt desc', async () => {
     const { signal, store } = await createStoreWithSignal();
     const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
     setRuntimeStoreForTests(store);
@@ -473,16 +499,26 @@ describe('wallet-funded follows', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(200);
-    expect(payload.follows).toHaveLength(1);
-    expect(payload.walletFollows).toHaveLength(1);
+    expect(payload.follows).toHaveLength(2);
+    expect(payload.walletFollows).toHaveLength(2);
+    expect(payload.walletFollows[0]).toMatchObject({
+      followTxHash: payload.follows[0].followTxHash,
+      txHash: payload.follows[0].followTxHash,
+      stakeMicroUsdc: signal.stakeMicroUsdc
+    });
     expect(payload.follows[0]).toMatchObject({
       signalId: signal.id,
-      txHash: '0xf011000000000000000000000000000000000000000000000000000000000004',
+      followTxHash: '0xf011000000000000000000000000000000000000000000000000000000000004',
       followedAt: '2026-05-20T00:04:00.000Z'
+    });
+    expect(payload.follows[1]).toMatchObject({
+      signalId: signal.id,
+      followTxHash: FOLLOW_TX_HASH,
+      followedAt: '2026-05-20T00:01:00.000Z'
     });
   });
 
-  it('GET /api/wallet/[address]/summary falls back to signal id when the signal is no longer present', async () => {
+  it('GET /api/wallet/[address]/summary marks missing joined signals as pending', async () => {
     const { signal, store } = await createStoreWithSignal();
     const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
     setRuntimeStoreForTests(store);
@@ -504,8 +540,10 @@ describe('wallet-funded follows', () => {
     expect(payload.follows).toEqual([
       expect.objectContaining({
         signalId: signal.id,
-        marketQuestion: signal.id,
-        status: 'confirmed'
+        marketId: signal.id,
+        marketQuestion: '(market unavailable)',
+        status: 'pending',
+        payoutMicroUsdc: null
       })
     ]);
   });
@@ -522,6 +560,6 @@ describe('wallet-funded follows', () => {
     const payload = await response.json();
 
     expect(response.status).toBe(400);
-    expect(payload).toEqual({ reason: 'invalid_wallet_address' });
+    expect(payload).toEqual({ error: 'invalid address' });
   });
 });

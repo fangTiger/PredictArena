@@ -300,6 +300,34 @@ describe('ArenaDashboard', () => {
       marketQuestion: signal.marketQuestion,
       status: 'confirmed' as const
     };
+    const historicalSummaryFollow = {
+      id: 'wallet-follow-historical',
+      signalId: 'historical-signal',
+      walletAddress,
+      marketId: 'historical-market',
+      marketQuestion: 'Will a historical wallet follow stay normalized?',
+      side: 'NO' as const,
+      bondedMicroUsdc: String(signal.stakeMicroUsdc),
+      followTxHash: `0x${'7'.repeat(64)}`,
+      status: 'confirmed' as const,
+      followedAt: '2026-06-04T00:00:00.000Z',
+      resolvedAt: null,
+      payoutMicroUsdc: null
+    };
+    const confirmedSummaryFollow = {
+      id: confirmedFollow.id,
+      signalId: confirmedFollow.signalId,
+      walletAddress,
+      marketId: signal.marketId,
+      marketQuestion: signal.marketQuestion,
+      side: signal.side,
+      bondedMicroUsdc: String(signal.stakeMicroUsdc),
+      followTxHash: confirmedFollow.txHash,
+      status: 'confirmed' as const,
+      followedAt: confirmedFollow.followedAt,
+      resolvedAt: null,
+      payoutMicroUsdc: null
+    };
 
     let walletSummaryRequests = 0;
     vi.stubGlobal(
@@ -332,7 +360,7 @@ describe('ArenaDashboard', () => {
 
         if (url === `/api/wallet/${walletAddress}/summary`) {
           walletSummaryRequests += 1;
-          const follows = walletSummaryRequests >= 3 ? [confirmedFollow] : [];
+          const follows = walletSummaryRequests >= 3 ? [confirmedSummaryFollow] : [historicalSummaryFollow];
           return createJsonResponse({
             walletAddress,
             follows,

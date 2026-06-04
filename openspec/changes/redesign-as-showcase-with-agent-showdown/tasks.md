@@ -78,11 +78,11 @@
 
 ## 8. /my Wallet-Bound Dashboard (Plan Chunk 8)
 
-- [ ] 8.1 Implement `WalletBindingsFacade` (joining `WalletFollowRecord` against `state.signals`). _Executor: Codex_
-- [ ] 8.2 Implement `GET /api/wallet/[address]/summary` endpoint. _Executor: Codex_
-- [ ] 8.3 Build `MyDashboard` (with EIP-1193 `accountsChanged` listener; useSWR above early return per Rules of Hooks). _Executor: Codex_
-- [ ] 8.4 Build `MyOverviewStrip`, `MyFollowsTable`, `MyTxHistoryTable`. _Executor: Codex_
-- [ ] 8.5 Wire `app/my/page.tsx` to mount `MyDashboard`. _Executor: Codex_
+- [x] 8.1 Implement `WalletBindingsFacade` (joining `WalletFollowRecord` against `state.signals`). _Executor: Codex_
+- [x] 8.2 Implement `GET /api/wallet/[address]/summary` endpoint. _Executor: Codex_
+- [x] 8.3 Build `MyDashboard` (with EIP-1193 `accountsChanged` listener; useSWR above early return per Rules of Hooks). _Executor: Codex_
+- [x] 8.4 Build `MyOverviewStrip`, `MyFollowsTable`, `MyTxHistoryTable`. _Executor: Codex_
+- [x] 8.5 Wire `app/my/page.tsx` to mount `MyDashboard`. _Executor: Codex_
 
 ## 9. /agents + /admin Sub-pages (Plan Chunk 9)
 
