@@ -9,21 +9,36 @@ interface PendingFollowsRowProps {
 }
 
 interface FollowChip {
+  id?: string;
   signalId: string;
   marketQuestion: string;
   status: 'pending' | 'confirmed';
+  walletAddress?: string;
+  txHash?: string;
+  followedAt?: string;
+  createdAt?: string;
 }
 
 type WalletSummaryPayload = {
   follows?: Array<{
+    id?: string;
     signalId?: string;
     marketQuestion?: string;
     status?: string;
+    walletAddress?: string;
+    txHash?: string;
+    followedAt?: string;
+    createdAt?: string;
   }>;
   walletFollows?: Array<{
+    id?: string;
     signalId?: string;
     marketQuestion?: string;
     status?: string;
+    walletAddress?: string;
+    txHash?: string;
+    followedAt?: string;
+    createdAt?: string;
   }>;
   pendingFollows?: Array<{
     signalId?: string;
@@ -56,9 +71,14 @@ function toFollowChips(payload: WalletSummaryPayload | undefined): FollowChip[] 
   const direct = (payload.follows ?? payload.walletFollows ?? [])
     .filter((entry) => entry.status === 'pending' || entry.status === 'confirmed')
     .map((entry) => ({
+      id: entry.id,
       signalId: entry.signalId ?? '',
       marketQuestion: entry.marketQuestion ?? 'Untitled follow',
-      status: entry.status as 'pending' | 'confirmed'
+      status: entry.status as 'pending' | 'confirmed',
+      walletAddress: entry.walletAddress,
+      txHash: entry.txHash,
+      followedAt: entry.followedAt,
+      createdAt: entry.createdAt
     }));
 
   if (direct.length > 0) {
@@ -83,6 +103,22 @@ function truncateLabel(value: string) {
   return value.length > 44 ? `${value.slice(0, 43)}...` : value;
 }
 
+export function buildFollowChipKey(follow: FollowChip, index: number) {
+  const stableIdentity =
+    follow.id ??
+    follow.txHash ??
+    follow.followedAt ??
+    follow.createdAt ??
+    `position-${index}`;
+
+  return [
+    follow.status,
+    follow.signalId || 'unknown-signal',
+    follow.walletAddress || 'unknown-wallet',
+    stableIdentity
+  ].join(':');
+}
+
 export function PendingFollowsRow({ walletAddress }: PendingFollowsRowProps) {
   const swrKey = walletAddress ? `/api/wallet/${walletAddress}/summary` : null;
   const { data } = useSWR(swrKey, fetchSummary, {
@@ -97,10 +133,10 @@ export function PendingFollowsRow({ walletAddress }: PendingFollowsRowProps) {
 
   return (
     <section className="pending-follows-row glass-card" data-testid="pending-follows-row">
-      <span className="pending-follows-label">Pending follows</span>
+      <span className="pending-follows-label">Wallet follows</span>
       <div className="pending-follows-list">
-        {follows.map((follow) => (
-          <Link key={`${follow.status}:${follow.signalId}`} href="/my" className="pending-follow-chip">
+        {follows.map((follow, index) => (
+          <Link key={buildFollowChipKey(follow, index)} href="/my" className="pending-follow-chip">
             <span className="pending-follow-copy">{truncateLabel(follow.marketQuestion)}</span>
             <span className={`pending-follow-state pending-follow-state-${follow.status}`}>
               {follow.status}

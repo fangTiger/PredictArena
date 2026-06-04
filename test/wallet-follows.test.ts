@@ -448,6 +448,40 @@ describe('wallet-funded follows', () => {
     expect(JSON.stringify(payload)).not.toContain('999999');
   });
 
+  it('GET /api/wallet/[address]/summary dedupes historical follows for the same wallet and signal', async () => {
+    const { signal, store } = await createStoreWithSignal();
+    const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');
+    setRuntimeStoreForTests(store);
+
+    await store.saveWalletFollow(
+      createWalletFollowRecord(signal, {
+        txHash: FOLLOW_TX_HASH,
+        followedAt: '2026-05-20T00:01:00.000Z'
+      })
+    );
+    await store.saveWalletFollow(
+      createWalletFollowRecord(signal, {
+        txHash: '0xf011000000000000000000000000000000000000000000000000000000000004',
+        followedAt: '2026-05-20T00:04:00.000Z'
+      })
+    );
+
+    const { GET } = await import('@/app/api/wallet/[address]/summary/route');
+    const response = await GET(new Request(`http://localhost/api/wallet/${FOLLOW_WALLET}/summary`), {
+      params: Promise.resolve({ address: FOLLOW_WALLET })
+    });
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.follows).toHaveLength(1);
+    expect(payload.walletFollows).toHaveLength(1);
+    expect(payload.follows[0]).toMatchObject({
+      signalId: signal.id,
+      txHash: '0xf011000000000000000000000000000000000000000000000000000000000004',
+      followedAt: '2026-05-20T00:04:00.000Z'
+    });
+  });
+
   it('GET /api/wallet/[address]/summary falls back to signal id when the signal is no longer present', async () => {
     const { signal, store } = await createStoreWithSignal();
     const { setRuntimeStoreForTests } = await import('@/lib/persistence/store');

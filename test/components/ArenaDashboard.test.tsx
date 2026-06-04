@@ -276,4 +276,125 @@ describe('ArenaDashboard', () => {
     expect(walletMocks.createBrowserWalletClients).not.toHaveBeenCalled();
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
   });
+
+  it('confirms the wallet follow and refreshes summary after approve plus commit succeeds', async () => {
+    walletMocks.readBrowserWalletSession.mockReturnValue({
+      walletAddress,
+      chainId: 5042002,
+      connectedAt: '2026-06-04T00:00:00.000Z'
+    });
+    usdcMocks.readUsdcAllowance.mockResolvedValue(0n);
+
+    const signal = createSignal();
+    const confirmedFollow = {
+      id: 'wallet-follow-2',
+      signalId: signal.id,
+      walletAddress,
+      txHash: `0x${'3'.repeat(64)}`,
+      signalRecordId: 2,
+      chainId: 5042002,
+      arenaAddress: '0x9999999999999999999999999999999999999999',
+      stakeMicroUsdc: signal.stakeMicroUsdc,
+      agentName: signal.agentName,
+      followedAt: '2026-06-04T00:02:00.000Z',
+      marketQuestion: signal.marketQuestion,
+      status: 'confirmed' as const
+    };
+
+    let walletSummaryRequests = 0;
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({ signals: [signal] });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          walletSummaryRequests += 1;
+          const follows = walletSummaryRequests >= 3 ? [confirmedFollow] : [];
+          return createJsonResponse({
+            walletAddress,
+            follows,
+            walletFollows: follows
+          });
+        }
+
+        if (url === '/api/wallet/follows' && init?.method === 'POST') {
+          return createJsonResponse({
+            follow: {
+              ...confirmedFollow,
+              marketQuestion: undefined,
+              status: undefined
+            }
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await screen.findByText('Generated 1 signals from the latest run.');
+    const approveButton = await screen.findByRole('button', { name: 'Approve USDC' });
+    await waitFor(() => {
+      expect(approveButton).toBeEnabled();
+    });
+
+    let resolveCommit: (hash: `0x${string}`) => void = () => undefined;
+    arenaMocks.commitArenaSignal.mockReturnValue(
+      new Promise<`0x${string}`>((resolve) => {
+        resolveCommit = resolve;
+      })
+    );
+    usdcMocks.ensureUsdcAllowance.mockResolvedValue(`0x${'2'.repeat(64)}`);
+
+    fireEvent.click(approveButton);
+
+    await waitFor(() => {
+      expect(usdcMocks.ensureUsdcAllowance).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(arenaMocks.commitArenaSignal).toHaveBeenCalled();
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByText(/USDC approved 0x22222222\.\.\.222222\. Submit wallet follow transaction\./i)
+      ).toBeInTheDocument();
+    });
+
+    resolveCommit(`0x${'3'.repeat(64)}`);
+
+    await waitFor(() => {
+      expect(screen.getByText(/Wallet follow confirmed: .*0x33333333\.\.\.333333/i)).toBeInTheDocument();
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'Followed' })).toBeDisabled();
+    });
+
+    expect(walletSummaryRequests).toBeGreaterThanOrEqual(3);
+  });
 });

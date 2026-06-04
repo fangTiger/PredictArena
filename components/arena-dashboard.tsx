@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useCallback, useEffect, useState, useTransition } from 'react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 import { PendingFollowsRow } from '@/components/PendingFollowsRow';
 import { ShowdownGrid } from '@/components/ShowdownGrid';
 import type { ShowdownCardData } from '@/components/ShowdownCard';
@@ -102,6 +102,10 @@ async function fetchJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
+function getWalletSummaryKey(address: string) {
+  return `/api/wallet/${address}/summary`;
+}
+
 function toWalletFollowRecords(payload: WalletSummaryResponse | null | undefined): WalletFollowRecord[] {
   const follows = payload?.walletFollows ?? payload?.follows ?? [];
   return follows.map(({ marketQuestion: _marketQuestion, status: _status, ...follow }) => follow);
@@ -150,6 +154,7 @@ export function ArenaDashboard() {
   const [walletActionState, setWalletActionState] = useState<WalletActionState>('idle');
   const [controlRoom, setControlRoom] = useState<AutonomyResponse['controlRoom'] | null>(null);
   const [isPending, startTransition] = useTransition();
+  const { mutate } = useSWRConfig();
 
   const {
     data: showdownPayload,
@@ -243,9 +248,10 @@ export function ArenaDashboard() {
       }
 
       try {
-        const payload = await fetchJson<WalletSummaryResponse>(`/api/wallet/${address}/summary`);
+        const payload = await fetchJson<WalletSummaryResponse>(getWalletSummaryKey(address));
         const follows = toWalletFollowRecords(payload);
         setWalletFollows(follows);
+        await mutate(getWalletSummaryKey(address), payload, { revalidate: false });
         return follows;
       } catch {
         if (options.failSoft) {
@@ -255,7 +261,7 @@ export function ArenaDashboard() {
         throw new Error('wallet_follow_summary_unavailable');
       }
     },
-    [walletAddress]
+    [mutate, walletAddress]
   );
 
   useEffect(() => {
@@ -432,10 +438,11 @@ export function ArenaDashboard() {
         throw new Error('Connected wallet needs more Arc Testnet USDC.');
       }
 
+      let approvalHash: `0x${string}` | null = null;
       if (allowance < stake) {
         setWalletActionState('approving');
         setWalletMessage('Approve USDC in your wallet.');
-        await ensureUsdcAllowance({
+        approvalHash = await ensureUsdcAllowance({
           publicClient,
           walletClient,
           ownerAddress: address,
@@ -443,10 +450,15 @@ export function ArenaDashboard() {
           usdcAddress: room.usdcAddress,
           amount: stake
         });
+        setWalletAllowance(stake);
       }
 
       setWalletActionState('submitting');
-      setWalletMessage('Submit wallet follow transaction.');
+      setWalletMessage(
+        approvalHash
+          ? `USDC approved ${truncateHash(approvalHash)}. Submit wallet follow transaction.`
+          : 'Submit wallet follow transaction.'
+      );
       const txHash = await commitArenaSignal({
         walletClient,
         arenaAddress: room.arenaAddress,
@@ -478,7 +490,13 @@ export function ArenaDashboard() {
         payload.follow!,
         ...current.filter((follow) => follow.txHash.toLowerCase() !== txHash.toLowerCase())
       ]);
-      setWalletMessage(`Followed ${signal.marketQuestion} with ${truncateAddress(address)}.`);
+      const refreshedFollows = await refreshWalletFollowSummary(address, { failSoft: true });
+      if (refreshedFollows.length > 0) {
+        setWalletFollows(refreshedFollows);
+      }
+      setWalletMessage(
+        `Wallet follow confirmed: ${signal.marketQuestion} · ${truncateHash(payload.follow.txHash ?? txHash)}.`
+      );
       await refreshWalletReadiness(address);
       await refreshAutonomy();
     } finally {
@@ -497,6 +515,9 @@ export function ArenaDashboard() {
   }
 
   const fundableSignal = selectWalletFundableSignal(signals, walletFollows, walletAddress);
+  const followedSignal =
+    signals.find((signal) => hasWalletFollowForSignal(walletFollows, signal.id, walletAddress)) ?? null;
+  const displayedFollowSignal = fundableSignal ?? followedSignal;
   const walletFollowStep = getWalletFollowStep({
     hasProvider: hasWalletProvider,
     walletAddress,
@@ -504,8 +525,8 @@ export function ArenaDashboard() {
     requiredChainId: ARC_TESTNET_CHAIN_ID,
     balanceMicroUsdc: walletBalance,
     allowanceMicroUsdc: walletAllowance,
-    requiredStakeMicroUsdc: fundableSignal?.stakeMicroUsdc ?? 0,
-    alreadyFollowed: hasWalletFollowForSignal(walletFollows, fundableSignal?.id, walletAddress)
+    requiredStakeMicroUsdc: displayedFollowSignal?.stakeMicroUsdc ?? 0,
+    alreadyFollowed: hasWalletFollowForSignal(walletFollows, displayedFollowSignal?.id, walletAddress)
   });
 
   return (
@@ -580,25 +601,31 @@ export function ArenaDashboard() {
                 className="arena-cta-tertiary"
                 onClick={() => {
                   if (!fundableSignal) {
-                    setWalletMessage('Run agents first to surface a fundable signal.');
+                    setWalletMessage(
+                      followedSignal
+                        ? 'This wallet already follows the selected signal.'
+                        : 'Run agents first to surface a fundable signal.'
+                    );
                     return;
                   }
 
                   runAction(() => followSignalWithWallet(fundableSignal));
                 }}
-                disabled={isPending || !fundableSignal || walletFollowStep.disabled}
+                disabled={isPending || !displayedFollowSignal || walletFollowStep.disabled}
               >
-                {fundableSignal ? walletFollowStep.label : 'Run agents first'}
+                {displayedFollowSignal ? walletFollowStep.label : 'Run agents first'}
               </button>
             </div>
 
             <div className="arena-fundable-card">
               <span className="arena-mini-label">Selected follow candidate</span>
-              {fundableSignal ? (
+              {displayedFollowSignal ? (
                 <>
-                  <strong>{fundableSignal.marketQuestion}</strong>
+                  <strong>{displayedFollowSignal.marketQuestion}</strong>
                   <p>
-                    {fundableSignal.agentName} · {fundableSignal.side} · edge {(fundableSignal.edgeBps / 100).toFixed(2)}%
+                    {displayedFollowSignal.agentName} · {displayedFollowSignal.side} · edge{' '}
+                    {(displayedFollowSignal.edgeBps / 100).toFixed(2)}%
+                    {followedSignal ? ' · followed' : ''}
                   </p>
                 </>
               ) : (

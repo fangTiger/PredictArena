@@ -87,7 +87,7 @@ export async function ensureUsdcAllowance({
   spender: `0x${string}`;
   usdcAddress: `0x${string}`;
   amount: bigint;
-}): Promise<void> {
+}): Promise<`0x${string}` | null> {
   const allowance = await readUsdcAllowance({
     publicClient,
     ownerAddress,
@@ -96,7 +96,7 @@ export async function ensureUsdcAllowance({
   });
 
   if (allowance >= amount) {
-    return;
+    return null;
   }
 
   const approvalHash = await walletClient.writeContract({
@@ -107,4 +107,5 @@ export async function ensureUsdcAllowance({
   });
 
   await publicClient.waitForTransactionReceipt({ hash: approvalHash });
+  return approvalHash;
 }
