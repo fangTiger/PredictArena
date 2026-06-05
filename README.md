@@ -1,24 +1,19 @@
 # PredictArena
 
-PredictArena is a prediction-market intelligence workspace for public BTC/ETH/SOL crypto markets. It ranks research candidates, explains agent disagreement with market prices, compares agent reputation by segment, and evaluates paper-follow assumptions before any accountability workflow.
+PredictArena is an Arc Testnet showcase for accountable agent competition. When deterministic agents disagree on a public BTC/ETH/SOL prediction market, they can lock USDC into `ShowdownArena`, settle winner-take-all, and leave a public trail of receipts, hashes, and reputation. The public experience is intentionally small: editorial home on `/`, live showdown board on `/arena`, reputation dossiers on `/agents`, wallet-bound history on `/my`, and a hidden operator console under `/admin`.
 
-The accountability layer remains central: autonomous agents should not only publish opinions. They should leave auditable evidence, deterministic model outputs, risk decisions, transaction receipts, and measurable reputation over time.
+PredictArena is not a Polymarket trading client, an AMM, or an investment-advice product. It does not place Polymarket orders. The app is demo-first and testnet-first.
 
-PredictArena is not a Polymarket trading client, an AMM, or an investment-advice product. It does not place Polymarket orders. Scores, paper-follow results, and agent comparisons are research tools, not financial advice, transaction recommendations, or guarantees of performance.
+## Showcase Highlights
 
-## Key Capabilities
-
-- Autonomous market discovery from public Polymarket Gamma data, with demo snapshot fallback for resilient local operation.
-- `/intelligence` research workspace with market radar filters, saved filters, watchlists, in-app alerts, daily research queue, opportunity/risk/data-health scores, signal research, segmented reputation, and paper-follow views.
-- Deterministic BTC/ETH/SOL market parsing for expiry-above, expiry-below, touch-above, and touch-below questions.
-- Volatility and Momentum forecasting agents powered by seeded Monte Carlo GBM simulations.
-- Risk Agent gates for low edge, weak parsing confidence, extreme market prices, unsupported expiry windows, and missing price features.
-- Model and data hashes for each signal, allowing the forecast record to be inspected and reproduced from stored inputs.
-- Optional Arc Testnet USDC signal bonds for medium/high-conviction signals.
-- Run receipts, queue outcomes, budget snapshots, tx links, and public agent reputation profiles.
-- Read-only paper-follow/backtest metrics with sample size, unresolved/skipped counts, source mix, assumptions, and drawdown caveats.
-- Automatic crypto signal resolution from public candle data, plus a clearly labeled admin/demo resolution path.
-- Supabase persistence when configured, with local JSON fallback for development and demos.
+- Agent Showdowns on Arc Testnet: opposite-side agents open USDC-backed matches in `ShowdownArena`.
+- Stable first impression on `/`: the hero and data strip are rendered server-side by `getHomeStripData()`.
+- `/arena`: public showdown grid, pending wallet follows, manual `Run Agents`, and autonomy readiness.
+- `/agents`: reputation cards plus per-agent drill-down with historical signals and settled showdown wins.
+- `/my`: connected-wallet dashboard backed by `GET /api/wallet/[address]/summary`.
+- Hidden `/admin`: `control-room`, `proof`, `receipts`, and `resolution` behind `ADMIN_ACCESS_TOKEN` + `pa_admin` cookie.
+- Deterministic forecast pipeline: Market Scout -> parser -> price features -> Volatility/Momentum -> Risk Agent.
+- Demo-safe persistence: local JSON by default, Supabase optional.
 
 ## System Architecture
 
@@ -30,28 +25,32 @@ flowchart LR
     D["Demo snapshots"]
   end
 
-  subgraph MarketPipeline["Market and Price Pipeline"]
+  subgraph Pipeline["Discovery and Forecasting"]
     S["Market Scout"]
     N["Normalize YES/NO markets"]
     R["Deterministic crypto parser"]
     F["Price feature builder"]
+    V["Volatility Agent"]
+    M["Momentum Agent"]
+    G["Risk Agent"]
   end
 
-  subgraph Agents["Agent Decision Layer"]
-    V["Volatility Agent<br/>zero drift GBM"]
-    M["Momentum Agent<br/>bounded 7d drift GBM"]
-    G["Risk Agent<br/>gates and flags"]
+  subgraph Storage["Read Models and Storage"]
+    Store["Runtime store + showdown store"]
+    Wallet["WalletBindingsFacade"]
+    Receipt["Receipts and reputation"]
   end
 
-  subgraph Persistence["Audit and Persistence"]
-    Store["Supabase or local JSON store"]
-    Receipt["Run receipts"]
-    Reputation["Agent reputation profiles"]
-    Leaderboard["Leaderboard and scoring"]
+  subgraph Surfaces["Public and Hidden Surfaces"]
+    Home["/ home RSC strip"]
+    Arena["/arena showdown board"]
+    Agents["/agents dossiers"]
+    My["/my wallet summary"]
+    Admin["/admin console"]
   end
 
   subgraph Arc["Arc Testnet"]
-    Contract["SignalBondArena"]
+    Contract["ShowdownArena"]
     USDC["USDC"]
     Explorer["Arc explorer"]
   end
@@ -68,56 +67,60 @@ flowchart LR
   V --> G
   M --> G
   G --> Store
+  Store --> Home
+  Store --> Arena
+  Store --> Agents
   Store --> Receipt
-  Store --> Reputation
-  Store --> Leaderboard
+  Store --> Wallet
+  Wallet --> My
+  Admin --> Receipt
   G --> Contract
   USDC --> Contract
   Contract --> Store
   Contract --> Explorer
 ```
 
-## Decision Flow
+## Showcase Flow
 
 ```mermaid
 sequenceDiagram
-  participant User as User or Cron
+  participant Visitor as Visitor
+  participant Home as Home RSC
+  participant Data as getHomeStripData
   participant API as PredictArena API
-  participant Scout as Market Scout
-  participant Price as Price Features
-  participant Agents as Forecasting Agents
-  participant Risk as Risk Agent
-  participant Store as Persistence
-  participant Arc as Arc Testnet
+  participant Store as Stores
+  participant Wallet as Wallet Summary API
+  participant Admin as Hidden Admin
+  participant Arc as ShowdownArena
 
-  User->>API: Run agents
-  API->>Scout: Fetch and rank supported markets
-  Scout-->>API: Parsed BTC/ETH/SOL candidates
-  API->>Price: Fetch candles and build volatility features
-  Price-->>API: Current price, sigma, recent return
-  API->>Agents: Run Volatility and Momentum models
-  Agents-->>Risk: Probability, edge, confidence inputs
-  Risk-->>API: YES, NO, or AVOID with risk flags
-  API->>Store: Persist signals, hashes, and run metadata
-  alt Eligible and authorized
-    API->>Arc: Commit USDC signal bond
-    Arc-->>API: Tx hash and signal record id
-    API->>Store: Persist committed status
-  else Not eligible or not authorized
-    API->>Store: Persist skipped reason
-  end
+  Visitor->>Home: Open /
+  Home->>Data: getHomeStripData()
+  Data->>Store: Read signal metrics and settled showdowns
+  Data->>Arc: Best-effort latest block read
+  Visitor->>API: GET /api/showdowns?status=all&limit=50
+  API->>Store: List active + settled showdowns
+  Visitor->>Wallet: GET /api/wallet/[address]/summary
+  Wallet->>Store: Join follows, txs, balances, and PnL
+  Admin->>API: POST /api/showdowns/discover
+  API->>Arc: openShowdown(...)
+  Arc-->>Store: Open tx + showdown record
+  Admin->>API: POST /api/showdowns/[id]/settle
+  API->>Arc: settleShowdown(...)
+  Arc-->>Store: Settlement tx + winner state
 ```
+
+Operator surfaces that used to be discussed as `/proof` or `/demo-resolution` now live behind the hidden `/admin/*` subtree: `/admin/control-room`, `/admin/proof`, `/admin/receipts`, and `/admin/resolution`.
 
 ## Agent Strategy
 
-PredictArena currently uses deterministic quantitative agents rather than LLM-based prediction.
+PredictArena uses deterministic quantitative agents rather than prompt-only prediction.
 
-| Agent | Role | Model |
-| --- | --- | --- |
-| Market Scout | Finds and ranks parseable crypto prediction markets | Liquidity, uncertainty, time-to-expiry, volume, parse confidence |
-| Volatility Agent | Estimates probability from realized volatility | Seeded GBM Monte Carlo with `mu = 0` |
-| Momentum Agent | Adds bounded directional drift | Seeded GBM Monte Carlo with 7-day return drift clamped to `[-0.75, 0.75]` |
-| Risk Agent | Blocks weak or unsafe signals | Parse confidence, edge, price range, expiry, missing data, liquidity flags |
+| Agent            | Role                                                      | Model                                                                      |
+| ---------------- | --------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Market Scout     | Finds and ranks parseable crypto prediction markets       | Liquidity, uncertainty, time-to-expiry, volume, parse confidence           |
+| Volatility Agent | Estimates probability from realized volatility            | Seeded GBM Monte Carlo with `mu = 0`                                       |
+| Momentum Agent   | Adds bounded directional drift                            | Seeded GBM Monte Carlo with 7-day return drift clamped to `[-0.75, 0.75]`  |
+| Risk Agent       | Blocks weak or unsafe signals before follows or showdowns | Parse confidence, edge, price range, expiry, missing data, liquidity flags |
 
 Signals are expressed in basis points and include:
 
@@ -126,60 +129,53 @@ Signals are expressed in basis points and include:
 - edge, capped Kelly sizing, stake amount, confidence label
 - risk flags
 - model hash and data hash
-- Arc transaction hash when committed
-- resolution and scoring fields when settled
-
-This makes the output suitable for audit trails, receipts, leaderboard scoring, and reputation tracking.
+- Arc transaction hash when bonded or settled
+- resolution and scoring fields when closed
 
 ## Application Surfaces
 
-| Route | Purpose |
-| --- | --- |
-| `/intelligence` | Primary market intelligence workspace for market radar filters, saved intelligence, signal research, segmented agent comparison, and paper-follow assumptions |
-| `/arena` | Market radar, manual Run Agents control, signal cards, and autonomy overview |
-| `/signals/[id]` | Deterministic signal detail, model inputs, hashes, risk flags, tx state, and resolution state |
-| `/leaderboard` | Agent-level generated, committed, resolved, accuracy, Brier, bonded, refunded, and slashed metrics |
-| `/agents/[agentName]` | Public reputation profile for Volatility or Momentum Agent |
-| `/autonomy/runs/[runId]` | Autonomous run receipt with queue outcomes, policy decisions, hashes, and tx links |
-| `/proof` | Operator proof pack with Arc readiness, latest receipt, health state, and bounded proof controls |
-| `/demo-resolution` | Admin/demo settlement console for closing the prediction-to-reputation loop |
+| Route                 | Audience         | Purpose                                                                                       |
+| --------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| `/`                   | Public           | Editorial landing page with hero, server-rendered data strip, and narrative bridge into Arena |
+| `/arena`              | Public           | Live showdown board, pending wallet follows, manual agent run trigger, and autonomy status    |
+| `/agents`             | Public           | Agent dossiers aggregating reputation, bonded size, accuracy, and settled showdown wins       |
+| `/agents/[agentId]`   | Public           | Per-agent drill-down with signal and reputation history                                       |
+| `/my`                 | Connected wallet | Personal dashboard for follows, bonded size, payouts, tx history, and current PnL             |
+| `/admin/login`        | Hidden operator  | Token-backed admin entry page                                                                 |
+| `/admin/control-room` | Hidden operator  | Arc readiness, wallet balances, allowance headroom, and latest tx                             |
+| `/admin/proof`        | Hidden operator  | Proof pack, bounded smoke controls, and resolution summary                                    |
+| `/admin/receipts`     | Hidden operator  | Autonomous run receipts and queue decisions                                                   |
+| `/admin/resolution`   | Hidden operator  | Demo settlement tools and resolution script                                                   |
+
+The public top nav only exposes `HOME`, `ARENA`, `AGENTS`, and `MY`. `/admin/*` is intentionally hidden and direct entry is gated.
 
 ## API Surfaces
 
-| Endpoint | Method | Purpose |
-| --- | --- | --- |
-| `/api/intelligence/markets` | `GET` | Public market intelligence catalog with filters, sorting, opportunity/risk/data-health scores, and safe spread diagnostics |
-| `/api/intelligence/research` | `GET` | Public market or signal research view for implied-vs-agent probability, drivers, risk flags, and accountability status |
-| `/api/intelligence/agents` | `GET` | Public segmented agent reputation by agent, asset, condition, expiry, confidence, or edge bucket |
-| `/api/intelligence/paper-follow` | `GET` | Read-only paper-follow/backtest result with assumptions, ROI, drawdown, sample size, skipped/unresolved counts, and source mix |
-| `/api/intelligence/workspace` | `GET` | Local saved-intelligence workspace summary with saved filters, watchlist, unread count, freshness state, and daily queue preview |
-| `/api/intelligence/saved-filters` | `GET`, `POST` | List or create bounded saved market-radar filters scoped to a client-generated workspace id |
-| `/api/intelligence/saved-filters/[filterId]` | `PATCH`, `DELETE` | Update, enable/disable, or delete a saved filter after workspace ownership validation |
-| `/api/intelligence/watchlist` | `GET`, `POST` | List watched markets or add a supported public intelligence market; duplicate watches return the existing item |
-| `/api/intelligence/watchlist/[watchId]` | `DELETE` | Remove a watched market after workspace ownership validation |
-| `/api/intelligence/alerts` | `GET` | List sanitized in-app alerts for a saved-intelligence workspace |
-| `/api/intelligence/alerts/evaluate` | `POST` | Manually refresh saved filters and watchlist snapshots, update freshness, and create bounded research alerts without running agents or sending transactions |
-| `/api/intelligence/alerts/[alertId]` | `PATCH` | Mark a saved-intelligence alert read, unread, or dismissed after workspace ownership validation |
-| `/api/intelligence/daily-queue` | `GET` | Return a prioritized research queue from saved filters, watched markets, and visible alerts |
-| `/api/markets` | `GET` | Fetch and return current parseable market candidates |
-| `/api/run-agents` | `POST` | Generate and persist agent signals for current candidates |
-| `/api/cron/run-autonomous-agents` | `GET`, `POST` | Secured scheduled runner for autonomous signal generation and optional commits |
-| `/api/autonomy` | `GET` | Public autonomy policies, run history, metrics, and Arc control-room state |
-| `/api/autonomy/runs/[runId]` | `GET` | Public run receipt without secrets |
-| `/api/agents/[agentName]` | `GET` | Public agent reputation profile |
-| `/api/proof` | `GET` | Sanitized operational proof pack |
-| `/api/proof/smoke` | `GET`, `POST` | Read-only proof facts or bounded authorized proof transaction |
-| `/api/arc/readiness` | `GET` | Public Arc readiness and wallet facts |
-| `/api/arc/sync-leaderboard` | `POST` | Best-effort onchain sync of known Arc signal state |
-| `/api/resolve-signals` | `POST` | Automatic server-side resolution from public candle data |
-| `/api/admin/resolve-demo` | `POST` | Admin-token protected demo resolution |
-| `/api/demo-script` | `GET` | Read model for guided settlement demonstrations |
+### Public showcase APIs
 
-`/api/commit-signal` is intentionally disabled as a public unauthenticated spend path. Production-like commits should flow through autonomy or proof mode so authorization, finite budgets, idempotency, and commit claims are enforced together.
+| Endpoint                        | Method | Purpose                                                                              |
+| ------------------------------- | ------ | ------------------------------------------------------------------------------------ |
+| `/api/showdowns`                | `GET`  | Public showdown feed for open, resolving, or settled records                         |
+| `/api/wallet/[address]/summary` | `GET`  | Wallet-bound summary for `/my`, including follows, balances, payouts, and tx history |
+| `/api/markets`                  | `GET`  | Current parseable market candidates                                                  |
+| `/api/run-agents`               | `POST` | Generate and persist deterministic agent signals                                     |
+| `/api/autonomy`                 | `GET`  | Public policy, metrics, run summaries, and Arc control-room state                    |
+| `/api/agents/[agentName]`       | `GET`  | Per-agent reputation profile backing `/agents` drill-downs                           |
+| `/api/leaderboard`              | `GET`  | Preserved reputation aggregate used by agent-facing read models                      |
+| `/api/arc/readiness`            | `GET`  | Read-only Arc chain and wallet readiness facts                                       |
 
-Saved intelligence uses a client-generated local workspace id stored in browser local storage. It is convenience state for non-sensitive research preferences, not authentication, account sync, or access control for private data. Clearing browser local storage can remove the user's handle to saved filters, watched markets, alert state, and the daily queue.
+### Operator and admin APIs
 
-Intelligence scores, saved alerts, daily queue entries, and paper-follow outputs are bounded research read models. They help prioritize review, compare historical behavior, and expose data caveats; they do not recommend trades, orders, copy-trading, Arc transactions, or guaranteed performance.
+| Endpoint                          | Method        | Purpose                                                                            |
+| --------------------------------- | ------------- | ---------------------------------------------------------------------------------- |
+| `/api/showdowns/discover`         | `POST`        | Admin-gated showdown discovery and `ShowdownArena.openShowdown(...)` orchestration |
+| `/api/showdowns/[id]/settle`      | `POST`        | Admin-gated settlement via `ShowdownArena.settleShowdown(...)`                     |
+| `/api/cron/run-autonomous-agents` | `GET`, `POST` | Scheduled runner for signal generation plus showdown discovery and settlement      |
+| `/api/proof`                      | `GET`         | Proof-pack read model now surfaced through hidden `/admin/proof`                   |
+| `/api/proof/smoke`                | `GET`, `POST` | Bounded proof smoke controls used by the admin console                             |
+| `/api/admin/resolve-demo`         | `POST`        | Hidden demo/admin resolution path                                                  |
+
+Legacy `/api/intelligence/*`, `/api/demo-script`, `/api/resolve-signals`, `/api/resolve-demo`, `/api/wallet/follows`, and `/api/commit-signal` paths remain in the repo as supporting read models or transition paths, but they are no longer the primary public showcase contract described above.
 
 ## Quickstart
 
@@ -195,7 +191,7 @@ npm install
 cp .env.example .env.local
 ```
 
-The default `.env.example` keeps the app runnable with demo snapshots and dry-run autonomy. For a read-only local walkthrough, no private keys are required.
+For a read-only local walkthrough, demo snapshots and dry-run autonomy are enough.
 
 ### 3. Start the app
 
@@ -206,10 +202,16 @@ npm run dev
 Open:
 
 ```text
-http://127.0.0.1:3000/intelligence
+http://127.0.0.1:3000/
 ```
 
-### 4. Generate signals
+### 4. Optional: seed local state
+
+```bash
+npx tsx scripts/seedDemo.ts
+```
+
+### 5. Optional: generate fresh signals
 
 Use the `Run Agents` button in `/arena`, or call the API directly:
 
@@ -219,141 +221,36 @@ curl -X POST http://127.0.0.1:3000/api/run-agents \
   -d '{"limit": 10}'
 ```
 
-### 5. Optional: seed local state
+### 6. Optional: inspect wallet and admin flows
 
-```bash
-npx tsx scripts/seedDemo.ts
-```
+- Connect a browser wallet, switch to Arc Testnet, and open `/my` to load the wallet-bound summary.
+- If `ADMIN_ACCESS_TOKEN` is configured, open `http://127.0.0.1:3000/admin/login` to access the hidden operator console.
 
-This scans markets, loads candle features, runs agents, and stores the current arena state.
+## Environment Notes
 
-## Environment Variables
+Core variables live in `.env.example`. For the showcase flows, pay attention to:
 
-Core variables are documented in `.env.example`.
+- public app URL and Arc explorer settings
+- Arc RPC, chain id, and USDC address
+- agent and admin private keys
+- `ADMIN_ACCESS_TOKEN` and `CRON_SECRET`
+- Supabase settings or local store path
+- the contract-address settings required by the Arc flow you are exercising
 
-### Public app and data
-
-- `NEXT_PUBLIC_APP_NAME`: displayed app name.
-- `NEXT_PUBLIC_APP_URL`: app URL used by public links.
-- `NEXT_PUBLIC_ARC_EXPLORER_URL`: Arc explorer base URL.
-- `ALLOW_DEMO_SNAPSHOT`: when `true`, local snapshots are used if live APIs fail.
-- `POLYMARKET_GAMMA_URL`: public Polymarket Gamma market endpoint.
-
-### Arc Testnet
-
-- `ARC_RPC_URL`: Arc Testnet RPC URL.
-- `ARC_CHAIN_ID`: Arc Testnet chain id.
-- `ARC_USDC_ADDRESS`: Arc Testnet USDC address.
-- `SIGNAL_BOND_ARENA_ADDRESS`: deployed `SignalBondArena` contract.
-- `ARC_TREASURY_ADDRESS`: treasury address used by contract deployment.
-- `VOL_AGENT_PRIVATE_KEY`: server-only Volatility Agent wallet.
-- `MOMENTUM_AGENT_PRIVATE_KEY`: server-only Momentum Agent wallet.
-- `ADMIN_PRIVATE_KEY`: server-only owner wallet for deployment or explicit onchain owner operations.
-
-### Autonomy and proof controls
-
-- `CRON_SECRET`: bearer token required by `/api/cron/run-autonomous-agents`.
-- `AUTONOMY_VOL_*`: Volatility Agent mode and finite budget limits.
-- `AUTONOMY_MOMENTUM_*`: Momentum Agent mode and finite budget limits.
-- `PROOF_MODE_SECRET`: required for transactional proof mode.
-- `PROOF_SMOKE_MAX_STAKE_USDC6`: proof-mode per-signal cap.
-- `PROOF_SMOKE_MAX_DAILY_USDC6`: proof-mode daily spend cap.
-- `PROOF_SMOKE_MAX_TRANSACTIONS_PER_DAY`: proof-mode daily transaction cap.
-
-### Persistence and admin demo resolution
-
-- `SUPABASE_URL`: optional Supabase project URL.
-- `SUPABASE_SERVICE_ROLE_KEY`: optional server-only service role key.
-- `SUPABASE_STATE_TABLE`: state table name, default `predictarena_state`.
-- `PREDICTARENA_LOCAL_STORE_PATH`: optional local JSON state path.
-- `ADMIN_RESOLVE_TOKEN`: admin token accepted by `/api/admin/resolve-demo`.
-
-Never prefix server-only secrets with `NEXT_PUBLIC_`.
+This repository still contains both legacy signal-bond paths and the new showdown flow, so keep environment values aligned with the surface you are testing.
 
 ## Autonomous Runs
 
-Autonomous runs are designed to be finite, idempotent, and auditable.
+Autonomous runs remain finite, idempotent, and auditable. `GET` or `POST /api/cron/run-autonomous-agents` can scan markets, generate signals, discover new showdowns, and settle eligible ones when operator config is present. `OFF`, `DRY_RUN`, and `LIVE` modes still gate spend by per-agent budgets.
 
-```mermaid
-flowchart TD
-  A["Cron request"] --> B{"Valid CRON_SECRET?"}
-  B -- "No" --> C["Reject without side effects"]
-  B -- "Yes" --> D["Acquire schedule-window lock"]
-  D --> E{"Duplicate or locked?"}
-  E -- "Yes" --> F["Return existing run or locked response"]
-  E -- "No" --> G["Fetch markets and price features"]
-  G --> H["Run deterministic agents"]
-  H --> I["Apply signal eligibility checks"]
-  I --> J{"Agent policy mode"}
-  J -- "OFF" --> K["Record mode_off"]
-  J -- "DRY_RUN" --> L["Record dry_run_eligible"]
-  J -- "LIVE" --> M{"Within finite budgets?"}
-  M -- "No" --> N["Record policy_blocked"]
-  M -- "Yes" --> O["Acquire commit claim"]
-  O --> P["Commit signal bond on Arc"]
-  P --> Q["Persist receipt and tx hash"]
-```
+## Arc Deployment Notes
 
-Supported autonomy modes:
+- Run `npm run test:contracts` before any manual deployment work.
+- Use `scripts/deploy-showdown-arena.ts` for the showcase contract path.
+- Fund agent wallets with Arc gas and Arc Testnet USDC, then approve the showdown contract before live operator runs.
+- Use `/api/arc/readiness` or hidden `/admin/control-room` to confirm wallet, allowance, contract, and chain readiness.
 
-- `OFF`: records skipped queue rows and blocks all spend.
-- `DRY_RUN`: persists signals and queue decisions without sending Arc transactions.
-- `LIVE`: commits only eligible medium/high-conviction signals that pass Risk Agent gates and finite per-agent budgets.
-
-Example local trigger:
-
-```bash
-curl -X POST http://127.0.0.1:3000/api/cron/run-autonomous-agents \
-  -H "Authorization: Bearer $CRON_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"limit": 10}'
-```
-
-Vercel Cron can target the same path with `GET` and the same bearer secret.
-
-## Arc Contract Deployment
-
-Run contract tests before deployment:
-
-```bash
-npm run test:contracts
-```
-
-Deploy to Arc Testnet:
-
-```bash
-export ARC_TREASURY_ADDRESS=0x...
-export ARC_USDC_ADDRESS=0x3600000000000000000000000000000000000000
-npx hardhat run scripts/deploy.ts --network arcTestnet
-```
-
-After deployment:
-
-1. Set `SIGNAL_BOND_ARENA_ADDRESS` in the server environment.
-2. Fund the Volatility and Momentum agent wallets with Arc gas.
-3. Fund the agent wallets with Arc Testnet USDC.
-4. Restart the app server.
-5. Use `/proof` or `/api/arc/readiness` to confirm wallet, allowance, contract, and chain readiness.
-
-## Resolution and Reputation
-
-Committed signals can be resolved by public candle data after the market window can be evaluated:
-
-- expiry-above: settlement close is above the threshold
-- expiry-below: settlement close is below the threshold
-- touch-above: any candle high touches or exceeds the threshold
-- touch-below: any candle low touches or falls below the threshold
-
-Resolution updates:
-
-- signal status
-- correctness for the selected side
-- refunded or slashed USDC accounting
-- paper ROI
-- Brier score
-- agent leaderboard and reputation profile
-
-The admin/demo resolution path is intentionally labeled as a demo/admin operation and is not presented as a decentralized oracle.
+This README documents local and demo operation more thoroughly than production rollout. Final deployment URLs and production secrets are intentionally not documented here.
 
 ## Verification
 
@@ -382,25 +279,24 @@ npm test -- test/agents.test.ts
 - Server-only secrets must remain server-only and must never be exposed through public JSON, client props, logs intended for UI, snapshots, or README examples.
 - Autonomous `LIVE` mode requires finite budgets for daily bonded USDC, daily signal count, max stake per signal, max open signals, and minimum edge.
 - Cron runs use schedule-window idempotency and locking to reduce duplicate side effects.
-- Commit claims block duplicate Arc commits when retries or uncertain transaction states occur.
-- Public read models are sanitized and should expose only public addresses, hashes, statuses, timestamps, reason codes, and transaction links.
+- Public read models should expose only public addresses, hashes, statuses, timestamps, reason codes, and transaction links.
 
 ## Project Structure
 
 ```text
 app/                  Next.js routes, API handlers, and pages
 components/           Shared UI components
-contracts/            SignalBondArena Solidity contract and interfaces
+contracts/            ShowdownArena plus legacy signal-bond contracts
 lib/agents/           Volatility, Momentum, Risk, and run orchestration
-lib/arc/              Arc client, contract calls, readiness, and sync helpers
+lib/arc/              Arc clients, readiness, wallet, and contract helpers
 lib/autonomy/         Cron runner, policies, budgets, locks, and commit claims
-lib/insights/         Receipt, reputation, proof, and demo read models
+lib/insights/         Receipt, reputation, proof, and read models
 lib/parser/           Deterministic crypto market parser
-lib/persistence/      Supabase/local persistence boundary
-lib/polymarket/       Market fetching, normalization, and orderbook helpers
+lib/persistence/      Showdown store, wallet bindings, and persistence boundary
+lib/polymarket/       Market fetching, normalization, and helpers
 lib/prices/           Candle fetching and volatility feature extraction
 lib/resolution/       Crypto signal resolution and scoring
-scripts/              Demo seeding and contract deployment scripts
+scripts/              Demo seeding and Arc deployment scripts
 test/                 Unit, API, persistence, contract, and E2E tests
 ```
 

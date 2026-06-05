@@ -97,9 +97,9 @@
 - [x] 10.1 Write Playwright E2E: home flow. _Executor: Codex_
 - [x] 10.2 Write Playwright E2E: arena showdown flow (with seeded `localStorage` wallet stub). _Executor: Codex_
 - [x] 10.3 Write Playwright E2E: my-dashboard flow. _Executor: Codex_
-- [ ] 10.4 Visual polish pass (color tokens, spacing, hover states). _Executor: Claude_
-- [ ] 10.5 Update README + `docs/circle-submission.md` for Arc builder application. _Executor: Claude_
-- [ ] 10.6 Update spec §5.1 to align with the RSC-not-SWR data strip decision. _Executor: Claude_
+- [x] 10.4 Visual polish pass (color tokens, spacing, hover states). _Executor: Claude_
+- [x] 10.5 Update README + `docs/circle-submission.md` for Arc builder application. _Executor: Claude_
+- [x] 10.6 Update spec §5.1 to align with the RSC-not-SWR data strip decision. _Executor: Claude_
 - [ ] 10.7 Deploy ShowdownArena to Arc Testnet via `scripts/deploy-showdown-arena.ts`. _Executor: Claude (manual deploy)_
 - [ ] 10.8 Approve USDC for agent wallets against ShowdownArena. _Executor: Claude (manual tx)_
 - [ ] 10.9 Configure production env (`NEXT_PUBLIC_SHOWDOWN_ARENA_ADDRESS`, `ADMIN_ACCESS_TOKEN`). _Executor: Claude_

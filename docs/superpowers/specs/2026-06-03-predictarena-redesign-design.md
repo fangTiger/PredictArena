@@ -628,9 +628,9 @@ showdown.sideAYes = false:
 
 **实现细节**：
 - 大标语：`<h1>` italic 部分用 `<em>`，文案锁定为 `"AI agents, betting with proof."`
-- 数据条：SWR 客户端 fetcher，`revalidateOnFocus: true`，`refreshInterval: 30000`（30 秒）
+- 数据条：由服务端 `getHomeStripData()` 聚合渲染，`app/page.tsx` 设为 `force-dynamic`；新鲜度来自导航/请求刷新，而不是客户端 SWR 定时轮询，以保持 showcase 第一视口稳定
 - 顶部 nav：4 项 + 右侧 Connect Wallet。**未连接钱包时 `MY` 项仍可见但点击跳到 wallet connect**
-- "LIVE ON ARC TESTNET · BLOCK xxx"：从 `useArcChainSync()` 实时读取最新 block number
+- "LIVE ON ARC TESTNET · BLOCK xxx"：由服务端在 `getHomeStripData()` 内 best-effort 读取 Arc 最新 block number；读取失败时允许为空，不阻塞首页渲染
 
 ### 5.2 第二屏（叙事 + CTA）
 
