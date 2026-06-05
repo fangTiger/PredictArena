@@ -19,7 +19,7 @@ export default async function HomePage() {
   const strip = await getHomeStripData();
 
   return (
-    <div className="glass-page home-protocol-shell" data-page-surface="protocol-glass">
+    <div className="glass-page home-protocol-shell" data-page-surface="arena-signal-glass">
       <TopNav variant="glass" />
       <main className="home-protocol-main">
         <HomeHero blockNumber={strip.blockNumber} />

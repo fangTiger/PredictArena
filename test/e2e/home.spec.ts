@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('home protocol glass flow exposes primary actions without the editorial frame shell', async ({
+test('home arena signal glass flow exposes primary actions without the editorial frame shell', async ({
   page
 }) => {
   await page.goto('/');
@@ -12,7 +12,8 @@ test('home protocol glass flow exposes primary actions without the editorial fra
     })
   ).toBeVisible();
   await expect(page.getByText('ACTIVE SIGNALS')).toBeVisible();
-  await expect(page.locator('[data-page-surface="protocol-glass"]')).toBeVisible();
+  await expect(page.locator('[data-page-surface="arena-signal-glass"]')).toBeVisible();
+  await expect(page.locator('[data-home-motion="signal-lattice"]')).toBeVisible();
   const heroActions = page.getByLabel('Home hero actions');
   await expect(heroActions.getByRole('link', { name: 'Enter Arena' })).toBeVisible();
   await expect(heroActions.getByRole('link', { name: 'View Agents' })).toBeVisible();

@@ -133,6 +133,13 @@
 - [x] 14.3 Restyle the KPI strip as a lightweight live tape/protocol metrics row instead of a boxed editorial grid. _Executor: worker-codex → Architecture Codex fallback_
 - [x] 14.4 Add/update focused home component and E2E tests, run OpenSpec validation, and perform desktop/mobile screenshot verification. _Executor: worker-codex + review-codex_
 
+## 15. Home Arena Alignment + Motion (Post-test Feedback)
+
+- [x] 15.1 Move the homepage away from the Hyper-like white pill nav / green fluid identity and back to PredictArena's Arena glass-neon palette. _Executor: Architecture Codex or worker-codex_
+- [x] 15.2 Add a subtle CSS-only dynamic signal/market motion layer to the home first viewport with reduced-motion safety. _Executor: Architecture Codex or worker-codex_
+- [x] 15.3 Keep hero CTAs, locked copy, KPI data flow, mobile no-overflow behavior, and route E2E intact. _Executor: Architecture Codex or worker-codex_
+- [x] 15.4 Add/update focused tests, run OpenSpec validation, and perform desktop/mobile visual smoke against `/` and `/arena` style consistency. _Executor: Architecture Codex + review-codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

@@ -18,9 +18,10 @@ export function HomeHero({ blockNumber }: HomeHeroProps) {
     <section
       className="home-hero glass-card"
       data-component="home-hero"
-      data-surface="protocol-glass"
-      data-home-visual="protocol-glass"
+      data-surface="arena-signal-glass"
+      data-home-visual="arena-signal-glass"
     >
+      <span className="home-signal-lattice" data-home-motion="signal-lattice" aria-hidden="true" />
       <span className="home-hero-mark" aria-hidden="true" />
       <p className="home-hero-kicker">{kicker}</p>
       <div className="home-hero-copy">

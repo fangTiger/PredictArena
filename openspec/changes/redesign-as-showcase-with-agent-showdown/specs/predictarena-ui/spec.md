@@ -2,17 +2,19 @@
 
 ## ADDED Requirements
 
-### Requirement: Protocol Glass Home Landing UI
+### Requirement: Arena Signal Glass Home Landing UI
 
-The `/` route SHALL render a Protocol Glass landing page composed of `TopNav` (Glass variant), `HomeHero`, `HomeDataStrip`, `HomeNarrative`, and `HomeTransitionFooter`. The page SHALL be a React Server Component (`force-dynamic`) that fetches KPI data once per request via `getHomeStripData()`.
+The `/` route SHALL render an Arena Signal Glass landing page composed of `TopNav` (Glass variant), `HomeHero`, `HomeDataStrip`, `HomeNarrative`, and `HomeTransitionFooter`. The page SHALL be a React Server Component (`force-dynamic`) that fetches KPI data once per request via `getHomeStripData()`.
 
 #### Scenario: Hero displays locked statement
 
 - **WHEN** the home page renders
-- **THEN** the H1 element SHALL contain the lead text "AI agents," and an `<em>` element containing "betting with proof." styled in the Protocol Glass mint/cyan accent
+- **THEN** the H1 element SHALL contain the lead text "AI agents," and an `<em>` element containing "betting with proof." styled in the Arena Signal Glass cyan/coral accent system
 - **AND** the tagline "LIVE ON ARC TESTNET" SHALL appear above the H1
 - **AND** if the latest Arc block number is available, it SHALL be appended as "· BLOCK X" with thousands separators
-- **AND** the first viewport SHALL avoid an enclosed black editorial frame; the hero SHALL sit on the same glass/protocol background system used by the other public pages
+- **AND** the first viewport SHALL avoid an enclosed black editorial frame; the hero SHALL sit on the same dark glass-neon background system used by `/arena`
+- **AND** the first viewport SHALL NOT visually mimic a single external reference site; specifically it SHALL NOT use a white pill navigation bar or a green-dominant fluid background as the primary identity
+- **AND** the first viewport SHALL include a lightweight CSS-driven signal/market motion layer that reinforces agent activity without blocking content or requiring JavaScript
 - **AND** the hero SHALL expose clear `Enter Arena` and `View Agents` calls to action without requiring wallet connection
 
 #### Scenario: Data strip 4 columns
@@ -20,7 +22,7 @@ The `/` route SHALL render a Protocol Glass landing page composed of `TopNav` (G
 - **WHEN** the home page renders
 - **THEN** the page SHALL display 4 cells labeled "ACTIVE SIGNALS", "USDC BONDED", "AGENT ACCURACY", "SHOWDOWNS WON" with numeric values and trend text
 - **AND** the showdowns cell SHALL be marked `data-source="placeholder"` only when the showdown service has not yet been wired (Chunk 5 dependency); once Chunk 6 lands the marker SHALL be removed
-- **AND** the strip SHALL read as a lightweight live tape or protocol metric row instead of a heavy grid locked inside a black box
+- **AND** the strip SHALL read as a lightweight live tape or protocol metric row using the same dark glass card treatment as Arena surfaces instead of a heavy grid locked inside a black box
 
 #### Scenario: Narrative two-column layout
 
@@ -31,7 +33,7 @@ The `/` route SHALL render a Protocol Glass landing page composed of `TopNav` (G
 #### Scenario: Protocol transition footer
 
 - **WHEN** the home page renders
-- **THEN** the page SHALL end with a `HomeTransitionFooter` containing a link to `/arena` labeled "Enter Arena →" styled as a glass/protocol pill on the same page background system
+- **THEN** the page SHALL end with a `HomeTransitionFooter` containing a link to `/arena` labeled "Enter Arena →" styled as an Arena-aligned glass pill on the same page background system
 
 ### Requirement: Glass Neon Arena UI
 
@@ -148,7 +150,7 @@ The `/admin/*` subtree SHALL be gated by a server-side cookie check against `ADM
 
 ### Requirement: War Room Prediction-Market Atmosphere
 
-The site's visual identity SHALL adopt a deliberate hybrid: **Protocol Glass** on the `/` landing page (Hyper Foundation-inspired restraint, fluid dark protocol background, compact top navigation, centered proof narrative, and lightweight live metrics) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
+The site's visual identity SHALL adopt a deliberate hybrid: **Arena Signal Glass** on the `/` landing page (PredictArena-owned dark glass-neon palette, compact dark translucent navigation, centered proof narrative, lightweight live metrics, and subtle signal motion) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
 
 #### Scenario: Token availability
 

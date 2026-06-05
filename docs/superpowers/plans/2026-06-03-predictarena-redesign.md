@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking. In codex-dev mode, tasks are dispatched to Codex via the codex-handoff skill.
 
-**Goal:** Convert PredictArena from a confusing 10-segment workbench into a showcase/pitch site for the Arc Discord builder application, with a Protocol Glass landing page, Glass Neon inner pages, a hidden /admin tree, wallet-bound personal data, and a new on-chain "Agent Showdown" feature where two AI agents bet against each other with USDC bonds on Arc Testnet.
+**Goal:** Convert PredictArena from a confusing 10-segment workbench into a showcase/pitch site for the Arc Discord builder application, with an Arena Signal Glass landing page, Glass Neon inner pages, a hidden /admin tree, wallet-bound personal data, and a new on-chain "Agent Showdown" feature where two AI agents bet against each other with USDC bonds on Arc Testnet.
 
-**Architecture:** Next.js 15 App Router with 4 public segments (`/`, `/arena`, `/agents`, `/my`) plus 1 hidden `/admin` subtree. New `ShowdownArena.sol` smart contract using operator-orchestrated atomic open pattern (no Pending/Cancelled states). Wallet-bound data aggregation via a new `WalletBindingsFacade` over the existing Supabase/local store. Visual style hybrid: Protocol Glass on homepage, Glass Neon on inner pages, minimal greyscale on `/admin`.
+**Architecture:** Next.js 15 App Router with 4 public segments (`/`, `/arena`, `/agents`, `/my`) plus 1 hidden `/admin` subtree. New `ShowdownArena.sol` smart contract using operator-orchestrated atomic open pattern (no Pending/Cancelled states). Wallet-bound data aggregation via a new `WalletBindingsFacade` over the existing Supabase/local store. Visual style hybrid: Arena Signal Glass on homepage, Glass Neon on inner pages, minimal greyscale on `/admin`.
 
 **Tech Stack:** Next.js 15.3, React 19, TypeScript 5.8, Tailwind 3.4, viem 2.30, Hardhat 2.24, Solidity 0.8.24, vitest 3.1, Playwright 1.52
 
@@ -46,7 +46,7 @@ scripts/
 ```
 app/
   layout.tsx                            (M) Update global metadata + top nav wiring
-  page.tsx                              (M) Replace redirect with Protocol Glass home
+  page.tsx                              (M) Replace redirect with Arena Signal Glass home
   globals.css                           (M) Add design tokens (Editorial + Glass + Admin)
 
   arena/page.tsx                        (M) Rewrite as Showdown main stage
@@ -170,7 +170,7 @@ docs/circle-submission.md               (M) Update for Arc builder application
 | **1** | Foundation skeleton: design tokens, TopNav, home/arena/agents/my placeholders, admin auth, admin shell + login (Tasks 1.1–1.8) | 1.5 | Prereqs done |
 | **2** | Legacy cleanup: port `/demo-resolution` & `/proof` into `/admin/*`, delete intelligence/autonomy/leaderboard/signals UI routes, full foundation verification (Tasks 1.9–1.11) | 0.5 | Chunk 1 |
 | **3** | ShowdownArena smart contract + tests + deployment script | 1 | Prereqs done (parallel-safe with Chunks 1-2) |
-| **4** | Protocol Glass homepage (Hero + DataStrip + Narrative) | 1 | Chunks 1-2 |
+| **4** | Arena Signal Glass homepage (Hero + DataStrip + Narrative) | 1 | Chunks 1-2 |
 | **5** | Showdown backend Part 1: persistence layer + discovery service | 1 | Chunks 1-3 |
 | **6** | Showdown backend Part 2: settlement service + API endpoints + cron wire + homeData integration | 1 | Chunk 5 |
 | **7** | Arena UI: ShowdownCard + ShowdownGrid + Arena page rewrite | 1.5 | Chunks 1-6 |
@@ -471,7 +471,7 @@ git commit -m "feat(ui): add TopNav shared component with editorial+glass varian
 
 ---
 
-### Task 1.4 · Replace `app/page.tsx` with Protocol Glass placeholder
+### Task 1.4 · Replace `app/page.tsx` with Arena Signal Glass placeholder
 
 **Files:**
 - Modify: `app/page.tsx`
@@ -480,7 +480,7 @@ git commit -m "feat(ui): add TopNav shared component with editorial+glass varian
 
 Read it. Confirm current content is the 5-line redirect to `/arena`.
 
-- [ ] **Step 1.4.2: Replace with placeholder Protocol Glass home**
+- [ ] **Step 1.4.2: Replace with placeholder Arena Signal Glass home**
 
 Replace entire file contents:
 
@@ -525,7 +525,7 @@ Run: `npm run dev` and visit `http://localhost:3000`. Confirm placeholder render
 
 ```bash
 git add app/page.tsx
-git commit -m "feat(home): replace redirect with protocol glass placeholder home"
+git commit -m "feat(home): replace redirect with arena signal glass placeholder home"
 ```
 
 ---
@@ -2200,11 +2200,11 @@ git commit -m "feat(contracts): add ShowdownArena deployment script"
 git commit --allow-empty -m "chore(redesign): chunk 3 (ShowdownArena contract) complete"
 ```
 
-**Chunk 3 done.** Smart contract is fully tested and deployable. Next chunk implements the Protocol Glass homepage.
+**Chunk 3 done.** Smart contract is fully tested and deployable. Next chunk implements the Arena Signal Glass homepage.
 
 ---
 
-## Chunk 4: Protocol Glass Homepage — Hero + DataStrip + Narrative
+## Chunk 4: Arena Signal Glass Homepage — Hero + DataStrip + Narrative
 
 **Why this chunk:** The homepage is the 30-second hook for the Arc builder reviewer. It must communicate "AI agents bet against each other on Arc, with proof" in one screen. Three components compose the page: a `HomeHero` (oversized statement), a `HomeDataStrip` (4 live KPIs), and a `HomeNarrative` (two-column "The Premise" + "How to Watch").
 
@@ -2996,7 +2996,7 @@ git commit -m "feat(home): add getHomeStripData service deriving KPIs from exist
 
 ---
 
-### Task 4.6 · Replace `app/page.tsx` placeholder with the full Protocol Glass home
+### Task 4.6 · Replace `app/page.tsx` placeholder with the full Arena Signal Glass home
 
 **Files:**
 - Modify: `app/page.tsx`
@@ -3061,7 +3061,7 @@ Kill dev server.
 
 ```bash
 git add app/page.tsx
-git commit -m "feat(home): assemble Protocol Glass home page with Hero + DataStrip + Narrative"
+git commit -m "feat(home): assemble Arena Signal Glass home page with Hero + DataStrip + Narrative"
 ```
 
 ---
@@ -3073,7 +3073,7 @@ git commit -m "feat(home): assemble Protocol Glass home page with Hero + DataStr
 - Test: `test/components/HomeTransitionFooter.test.tsx`
 - Modify: `app/page.tsx` (mount the footer)
 
-**Purpose:** Visual bridge from the Protocol Glass homepage to the Glass Neon Arena. Spec 附录 A explicitly calls this out as the risk mitigation for the visual hybrid.
+**Purpose:** Visual bridge from the Arena Signal Glass homepage to the Glass Neon Arena. Spec 附录 A explicitly calls this out as the risk mitigation for the visual hybrid.
 
 - [ ] **Step 4.7.1: Write failing test**
 
@@ -3149,7 +3149,7 @@ Both pass.
 
 ```bash
 git add components/HomeTransitionFooter.tsx test/components/HomeTransitionFooter.test.tsx app/page.tsx
-git commit -m "feat(home): add protocol transition footer with Enter Arena CTA"
+git commit -m "feat(home): add arena transition footer with Enter Arena CTA"
 ```
 
 ---
@@ -3160,13 +3160,13 @@ git commit -m "feat(home): add protocol transition footer with Enter Arena CTA"
 - [ ] **Run build**: `npm run build` → succeeds.
 - [ ] **Run lint**: `npm run lint` → exit code 0.
 - [ ] **Manual smoke**:
-  - `/` shows full Protocol Glass home with real data
+  - `/` shows full Arena Signal Glass home with real data
   - "SHOWDOWNS WON" cell shows `0 · — leads` (placeholder)
   - "Enter Arena →" button at the bottom; clicking goes to `/arena`
 - [ ] **Sign-off commit:**
 
 ```bash
-git commit --allow-empty -m "chore(redesign): chunk 4 (Protocol Glass homepage) complete"
+git commit --allow-empty -m "chore(redesign): chunk 4 (Arena Signal Glass homepage) complete"
 ```
 
 **Chunk 4 done.** Next chunk implements the Showdown backend (persistence, discovery service, settle service, API endpoints, cron wire).

@@ -22,10 +22,11 @@ describe('HomeHero', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders protocol glass stage markup with primary hero actions', () => {
+  it('renders arena signal glass stage markup with primary hero actions', () => {
     const { container } = render(<HomeHero blockNumber={8_412_390} />);
 
-    expect(container.querySelector('[data-surface="protocol-glass"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-surface="arena-signal-glass"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-home-motion="signal-lattice"]')).toBeInTheDocument();
 
     const arenaLink = screen.getByRole('link', { name: /enter arena/i });
     const agentsLink = screen.getByRole('link', { name: /view agents/i });
@@ -45,10 +46,10 @@ describe('HomeHero', () => {
     expect(screen.queryByText(/block/i)).toBeNull();
   });
 
-  it('offers primary protocol entry points from the first viewport', () => {
+  it('offers primary arena-aligned entry points from the first viewport', () => {
     const { container } = render(<HomeHero blockNumber={8_412_390} />);
 
-    expect(container.querySelector('[data-home-visual="protocol-glass"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-home-visual="arena-signal-glass"]')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /enter arena/i })).toHaveAttribute('href', '/arena');
     expect(screen.getByRole('link', { name: /view agents/i })).toHaveAttribute('href', '/agents');
   });
