@@ -119,6 +119,13 @@
 - [x] 12.3 Update `Run Agents + Follow`, empty Arena, and admin discovery copy so manual admin discovery is clearly an override/diagnostic path, not the normal user flow. _Executor: Codex_
 - [x] 12.4 Add/update focused tests and run OpenSpec validation. _Executor: Codex_
 
+## 13. Arena Density + Preview Feedback (Post-test Feedback)
+
+- [x] 13.1 Move Wallet Readiness out of the persistent Arena sidebar and expose it from the wallet/address entry path. _Executor: Codex_
+- [x] 13.2 Promote Run Output into a paginated, clickable signal browser with a read-only detail view. _Executor: Codex_
+- [x] 13.3 Render UI-only preview Showdown candidates when real showdowns are empty but the latest run has opposing signals; label previews as not on-chain. _Executor: Codex_
+- [x] 13.4 Add/update focused component tests and run OpenSpec validation. _Executor: Codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

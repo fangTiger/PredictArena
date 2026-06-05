@@ -47,9 +47,14 @@ describe('wallet-funded follow UI wiring', () => {
     expect(adminShell).toContain('/admin/resolution');
     expect(adminShell).toContain('/admin/proof');
     expect(walletButton).toContain('Disconnect');
+    expect(walletButton).toContain('/api/autonomy');
+    expect(walletButton).toContain('Wallet readiness');
+    expect(walletButton).toContain('Arc chain');
     expect(displayControls).toContain('Toggle theme');
     expect(displayControls).toContain('中文');
     expect(arenaDashboard).toContain('/api/wallet/follows');
+    expect(arenaDashboard).not.toContain('Wallet readiness');
+    expect(arenaDashboard).not.toContain('Arc status');
     expect(arenaDashboard).not.toContain('WalletConnectButton');
     expect(arenaDashboard).not.toContain('topbar-wallet-slot');
     expect(arenaDashboard).not.toContain('Market Radar');

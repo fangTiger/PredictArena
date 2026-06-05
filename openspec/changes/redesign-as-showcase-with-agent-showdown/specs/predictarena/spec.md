@@ -89,6 +89,22 @@ The system SHALL discover Showdown candidates server-side by scanning active sig
 - **THEN** the system SHALL treat that signal as ineligible for `openShowdown`
 - **AND** if no live opposing pair remains after filtering, the run SHALL return a no-candidate style skip instead of opening an on-chain Showdown
 
+#### Scenario: Demo snapshot disagreement may produce preview candidates only
+
+- **WHEN** a visitor-triggered agent run returns opposing `demo_snapshot` signals for the same market
+- **THEN** the client MAY derive an in-memory preview Showdown candidate from those signals
+- **AND** the preview candidate SHALL NOT be inserted into `ShowdownStore`
+- **AND** the preview candidate SHALL NOT call `ShowdownArena.openShowdown`
+- **AND** the preview candidate SHALL be labeled as not on-chain and SHALL NOT count toward active, settled, bonded, or won Showdown metrics
+
+#### Scenario: Demo snapshot near-miss previews remain off-chain
+
+- **WHEN** a visitor-triggered agent run returns same-market `demo_snapshot` signals that do not form an opposing YES/NO pair
+- **THEN** the client MAY derive an in-memory near-miss preview from those signals
+- **AND** the near-miss preview SHALL NOT be inserted into `ShowdownStore`
+- **AND** the near-miss preview SHALL NOT call `ShowdownArena.openShowdown`
+- **AND** the near-miss preview SHALL be labeled as not eligible for an on-chain Showdown yet
+
 #### Scenario: Insufficient agent budget
 
 - **WHEN** discovery selects a pair but either agent's remaining daily budget is less than `bondPerSideMicroUsdc`

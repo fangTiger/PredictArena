@@ -61,6 +61,72 @@ describe('ShowdownGrid', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders preview showdown candidates inside the empty arena state without treating them as live matches', () => {
+    render(
+      React.createElement(ShowdownGrid, {
+        showdowns: [],
+        previewCandidates: [
+          {
+            marketId: 'market-preview-1',
+            marketQuestion: 'Will BTC close above $100,000 this week?',
+            agentA: {
+              name: 'Volatility',
+              side: 'YES',
+              probabilityBps: 7200
+            },
+            agentB: {
+              name: 'Momentum',
+              side: 'NO',
+              probabilityBps: 3400
+            },
+            spreadBps: 3800,
+            source: 'demo_snapshot'
+          }
+        ]
+      } as any)
+    );
+
+    expect(screen.getByText('Preview only')).toBeInTheDocument();
+    expect(screen.getByText('Not on-chain')).toBeInTheDocument();
+    expect(screen.getByText('Will BTC close above $100,000 this week?')).toBeInTheDocument();
+    expect(screen.getByText('Volatility · YES · 72.00%')).toBeInTheDocument();
+    expect(screen.getByText('Momentum · NO · 34.00%')).toBeInTheDocument();
+    expect(screen.getByText('Spread 38.00%')).toBeInTheDocument();
+    expect(screen.getByText('Source: demo_snapshot')).toBeInTheDocument();
+  });
+
+  it('labels near-miss preview candidates as not yet eligible for onchain opening', () => {
+    render(
+      React.createElement(ShowdownGrid, {
+        showdowns: [],
+        previewCandidates: [
+          {
+            kind: 'near_miss',
+            marketId: 'market-preview-2',
+            marketQuestion: 'Will ETH close above $4,200 this week?',
+            agentA: {
+              name: 'Volatility',
+              side: 'AVOID',
+              probabilityBps: 5200
+            },
+            agentB: {
+              name: 'Momentum',
+              side: 'NO',
+              probabilityBps: 3400
+            },
+            spreadBps: 1800,
+            source: 'demo_snapshot'
+          }
+        ]
+      } as any)
+    );
+
+    expect(screen.getByText('Near-miss preview')).toBeInTheDocument();
+    expect(screen.getByText('Not on-chain')).toBeInTheDocument();
+    expect(screen.getByText('Volatility · AVOID · 52.00%')).toBeInTheDocument();
+    expect(screen.getByText('Momentum · NO · 34.00%')).toBeInTheDocument();
+  });
+
   it('shows active above settled, keeps sections as layout containers, and expands both lists via show more', () => {
     const active = Array.from({ length: 6 }, (_, index) =>
       createShowdown(`active-${index + 1}`, {

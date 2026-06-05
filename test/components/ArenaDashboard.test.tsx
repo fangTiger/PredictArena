@@ -27,12 +27,23 @@ const usdcMocks = vi.hoisted(() => ({
   ensureUsdcAllowance: vi.fn()
 }));
 
+const showdownGridMocks = vi.hoisted(() => ({
+  lastProps: null as any
+}));
+
 vi.mock('@/components/PendingFollowsRow', () => ({
   PendingFollowsRow: () => null
 }));
 
 vi.mock('@/components/ShowdownGrid', () => ({
-  ShowdownGrid: () => <div data-testid="showdown-grid-stub" />
+  ShowdownGrid: (props: any) => {
+    showdownGridMocks.lastProps = props;
+    return (
+      <div data-testid="showdown-grid-stub">
+        preview:{props.previewCandidates?.length ?? 0}
+      </div>
+    );
+  }
 }));
 
 vi.mock('@/lib/arc/browserWallet', async () => {
@@ -120,6 +131,7 @@ function renderDashboard() {
 
 describe('ArenaDashboard', () => {
   beforeEach(() => {
+    showdownGridMocks.lastProps = null;
     walletMocks.requestBrowserWalletAddress.mockReset();
     walletMocks.requestBrowserWalletAddress.mockResolvedValue(walletAddress);
     walletMocks.readBrowserWalletChainId.mockReset();
@@ -340,6 +352,145 @@ describe('ArenaDashboard', () => {
     });
   });
 
+  it('promotes run output into a paginated signal browser with a read-only detail panel', async () => {
+    const signals = [
+      createSignal({
+        id: 'signal-browser-1',
+        marketId: 'market-browser-1',
+        marketQuestion: 'Will BTC close above $100,000 this week?',
+        agentName: 'volatility',
+        side: 'YES',
+        agentProbabilityBps: 7100,
+        marketPriceBps: 5200,
+        edgeBps: 1900,
+        confidence: 'HIGH'
+      }),
+      createSignal({
+        id: 'signal-browser-2',
+        marketId: 'market-browser-2',
+        marketQuestion: 'Will ETH close above $4,200 this week?',
+        agentName: 'momentum',
+        side: 'YES',
+        agentProbabilityBps: 6800,
+        marketPriceBps: 4900,
+        edgeBps: 1900,
+        confidence: 'HIGH',
+        modelHash: `0x${'3'.repeat(64)}`,
+        dataHash: `0x${'4'.repeat(64)}`
+      }),
+      createSignal({
+        id: 'signal-browser-3',
+        marketId: 'market-browser-3',
+        marketQuestion: 'Will SOL close above $180 this week?',
+        agentName: 'volatility',
+        side: 'YES',
+        agentProbabilityBps: 6500,
+        marketPriceBps: 4700,
+        edgeBps: 1800,
+        confidence: 'MEDIUM',
+        modelHash: `0x${'5'.repeat(64)}`,
+        dataHash: `0x${'6'.repeat(64)}`
+      }),
+      createSignal({
+        id: 'signal-browser-4',
+        marketId: 'market-browser-4',
+        marketQuestion: 'Will SOL close below $160 this week?',
+        agentName: 'momentum',
+        side: 'NO',
+        agentProbabilityBps: 3400,
+        marketPriceBps: 4600,
+        edgeBps: 2000,
+        confidence: 'MEDIUM',
+        riskFlags: ['volatility_spike'],
+        modelHash: `0x${'7'.repeat(64)}`,
+        dataHash: `0x${'8'.repeat(64)}`
+      })
+    ];
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals,
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 0,
+                  opened: 0,
+                  skips: []
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    expect(await screen.findByRole('heading', { name: 'Signal browser' })).toBeInTheDocument();
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Will BTC close above \$100,000 this week\?/ })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Will SOL close below \$160 this week\?/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next page' }));
+
+    expect(screen.getByText('Page 2 of 2')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Will SOL close below \$160 this week\?/ }));
+
+    const detailPanel = await screen.findByTestId('signal-detail-panel');
+    expect(detailPanel).toHaveTextContent('Market question');
+    expect(detailPanel).toHaveTextContent('Will SOL close below $160 this week?');
+    expect(detailPanel).toHaveTextContent('momentum');
+    expect(detailPanel).toHaveTextContent('NO');
+    expect(detailPanel).toHaveTextContent('34.00%');
+    expect(detailPanel).toHaveTextContent('46.00%');
+    expect(detailPanel).toHaveTextContent('20.00%');
+    expect(detailPanel).toHaveTextContent('MEDIUM');
+    expect(detailPanel).toHaveTextContent('demo_snapshot');
+    expect(detailPanel).toHaveTextContent('volatility_spike');
+    expect(detailPanel).toHaveTextContent('0x77777777...777777');
+    expect(detailPanel).toHaveTextContent('0x88888888...888888');
+    expect(walletMocks.requestBrowserWalletAddress).not.toHaveBeenCalled();
+    expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
+  });
+
   it('keeps the opened success message when showdown revalidation fails after Run Agents', async () => {
     let showdownRequests = 0;
     const signal = createSignal();
@@ -416,6 +567,295 @@ describe('ArenaDashboard', () => {
       screen.getByText('Generated 1 signal. Automatic discovery opened 1 showdown. Arena refreshed for live matches.')
     ).toBeInTheDocument();
     expect(screen.queryByText('Request failed: 503')).not.toBeInTheDocument();
+  });
+
+  it('passes ui-only preview showdown candidates to ShowdownGrid when live showdowns are empty', async () => {
+    const yesSignal = createSignal({
+      id: 'signal-preview-yes',
+      marketId: 'market-preview-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'volatility',
+      side: 'YES',
+      agentProbabilityBps: 7200,
+      marketPriceBps: 5200,
+      edgeBps: 2000
+    });
+    const noSignal = createSignal({
+      id: 'signal-preview-no',
+      marketId: 'market-preview-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'momentum',
+      side: 'NO',
+      agentProbabilityBps: 3300,
+      marketPriceBps: 4700,
+      edgeBps: 2000,
+      modelHash: `0x${'9'.repeat(64)}`,
+      dataHash: `0x${'a'.repeat(64)}`
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [yesSignal, noSignal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 0,
+                  opened: 0,
+                  skips: [{ marketId: yesSignal.marketId, reason: 'no-pair' }]
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await waitFor(() => {
+      expect(showdownGridMocks.lastProps?.previewCandidates).toHaveLength(1);
+    });
+    expect(showdownGridMocks.lastProps.previewCandidates[0]).toMatchObject({
+      marketId: 'market-preview-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      spreadBps: 3900,
+      source: 'demo_snapshot',
+      agentA: {
+        name: 'volatility',
+        side: 'YES',
+        probabilityBps: 7200
+      },
+      agentB: {
+        name: 'momentum',
+        side: 'NO',
+        probabilityBps: 3300
+      }
+    });
+  });
+
+  it('passes near-miss preview candidates when the latest run has no opposing pair yet', async () => {
+    const avoidSignal = createSignal({
+      id: 'signal-near-miss-avoid',
+      marketId: 'market-near-miss-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'volatility',
+      side: 'AVOID',
+      agentProbabilityBps: 5200,
+      marketPriceBps: 5100,
+      edgeBps: 100,
+      confidence: 'LOW'
+    });
+    const noSignal = createSignal({
+      id: 'signal-near-miss-no',
+      marketId: 'market-near-miss-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'momentum',
+      side: 'NO',
+      agentProbabilityBps: 3300,
+      marketPriceBps: 4700,
+      edgeBps: 1400,
+      modelHash: `0x${'b'.repeat(64)}`,
+      dataHash: `0x${'c'.repeat(64)}`
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [avoidSignal, noSignal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 0,
+                  opened: 0,
+                  skips: [{ marketId: avoidSignal.marketId, reason: 'same-side' }]
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await waitFor(() => {
+      expect(showdownGridMocks.lastProps?.previewCandidates).toHaveLength(1);
+    });
+    expect(showdownGridMocks.lastProps.previewCandidates[0]).toMatchObject({
+      kind: 'near_miss',
+      marketId: 'market-near-miss-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      spreadBps: 1900,
+      source: 'demo_snapshot',
+      agentA: {
+        name: 'volatility',
+        side: 'AVOID',
+        probabilityBps: 5200
+      },
+      agentB: {
+        name: 'momentum',
+        side: 'NO',
+        probabilityBps: 3300
+      }
+    });
+  });
+
+  it('does not pass preview candidates when discovery opened a real showdown and the list is still empty', async () => {
+    const yesSignal = createSignal({
+      id: 'signal-opened-preview-yes',
+      marketId: 'market-opened-preview-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'volatility',
+      side: 'YES',
+      agentProbabilityBps: 7200
+    });
+    const noSignal = createSignal({
+      id: 'signal-opened-preview-no',
+      marketId: 'market-opened-preview-1',
+      marketQuestion: 'Will BTC close above $100,000 this week?',
+      agentName: 'momentum',
+      side: 'NO',
+      agentProbabilityBps: 3300
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [yesSignal, noSignal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 1,
+                  opened: 1,
+                  skips: []
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await waitFor(() => {
+      expect(showdownGridMocks.lastProps?.previewCandidates).toHaveLength(0);
+    });
+    expect(
+      await screen.findByText('Generated 2 signals. Automatic discovery opened 1 showdown. Arena refreshed for live matches.')
+    ).toBeInTheDocument();
   });
 
   it('checks wallet follow summary before chain reads when run agents plus follow starts disconnected', async () => {

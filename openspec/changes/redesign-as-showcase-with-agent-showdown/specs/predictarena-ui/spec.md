@@ -40,6 +40,16 @@ The `/arena` route SHALL render a Glass Neon themed layout consisting of `TopNav
 - **THEN** the `ShowdownGrid` SHALL explain that `Run Agents` generates signals and automatically attempts to open eligible on-chain matches
 - **AND** it SHALL explain that an empty result can mean the agents agreed, budget/gas safeguards blocked opening, or an open match already exists
 
+#### Scenario: Empty showdown grid can show preview candidates
+
+- **WHEN** `/api/showdowns?status=all&limit=50` returns an empty list AND the latest in-memory agent run contains opposing signals on the same market
+- **THEN** the Arena SHALL render preview Showdown candidates in the Showdown area
+- **AND** each preview candidate SHALL show the market, both agents, side, probability, spread, and source
+- **AND** the preview area SHALL clearly label itself as not on-chain and separate from active/settled Showdowns
+- **AND** the preview area SHALL explain that live-only discovery will open a real chain match only when live market data, budget, gas, and idempotency checks pass
+- **AND** if the latest in-memory run has same-market agent signals but no opposing YES/NO pair, the Arena MAY render a near-miss preview labeled as not eligible for an on-chain Showdown yet
+- **AND** if automatic discovery reports that it opened a real Showdown or found an existing open Showdown, the Arena SHALL NOT show those latest signals as preview candidates while the real Showdown list is refreshing
+
 #### Scenario: Run Agents reports automatic discovery outcome
 
 - **WHEN** a visitor clicks `Run Agents`
@@ -47,11 +57,26 @@ The `/arena` route SHALL render a Glass Neon themed layout consisting of `TopNav
 - **AND** revalidate `/api/showdowns?status=all&limit=50`
 - **AND** display whether automatic Showdown discovery opened matches, skipped all candidates, or is waiting on safe configuration/budget/gas prerequisites
 
+#### Scenario: Run output is inspectable
+
+- **WHEN** a visitor clicks `Run Agents` and signals are generated
+- **THEN** the Arena SHALL render a prominent Run Output signal browser
+- **AND** the browser SHALL paginate generated signals instead of truncating them silently
+- **AND** each visible signal row SHALL be clickable and SHALL reveal a detail view containing the market question, agent, side, probability, market price, edge, confidence, source, model/data hash, risk flags, and timestamp
+- **AND** the detail view SHALL remain read-only and SHALL NOT trigger wallet approval, wallet follow, or admin actions
+
 #### Scenario: Wallet follow success gives next-step guidance
 
 - **WHEN** a visitor clicks `Run Agents + Follow` and the wallet follow receipt is confirmed
 - **THEN** the Arena dashboard SHALL tell the visitor to check `/my` for the saved receipt
 - **AND** it SHALL explain that automatic discovery runs after each agent run and the Arena refreshes when a match opens
+
+#### Scenario: Wallet readiness opens from the wallet entry
+
+- **WHEN** a visitor opens `/arena`
+- **THEN** the Arena SHALL NOT render a persistent full Wallet Readiness panel in the page sidebar
+- **AND** when a connected visitor activates the top-right wallet/address control, the UI SHALL show wallet readiness details including connected address, Arc chain, USDC balance, allowance, contract readiness, and latest tx
+- **AND** dismissing the readiness details SHALL return space to the core Showdown and Run Output surfaces
 
 #### Scenario: Showdown card visual states
 

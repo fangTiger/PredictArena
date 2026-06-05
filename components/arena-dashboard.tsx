@@ -4,7 +4,7 @@ import React from 'react';
 import { useCallback, useEffect, useState, useTransition } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 import { PendingFollowsRow } from '@/components/PendingFollowsRow';
-import { ShowdownGrid } from '@/components/ShowdownGrid';
+import { ShowdownGrid, type PreviewShowdownCandidate } from '@/components/ShowdownGrid';
 import type { ShowdownCardData } from '@/components/ShowdownCard';
 import {
   createBrowserWalletClients,
@@ -96,6 +96,8 @@ type WalletActionState =
   | 'confirming';
 
 const SHOWDOWNS_SWR_KEY = '/api/showdowns?status=all&limit=50';
+const SIGNALS_PAGE_SIZE = 3;
+const PREVIEW_CANDIDATE_LIMIT = 5;
 const NO_CANDIDATE_SKIP_REASONS = new Set(['no-active-signals', 'no-pair', 'same-side']);
 const WAITING_DISCOVERY_REASONS = new Set([
   'showdown_discovery_config_missing',
@@ -119,12 +121,20 @@ function truncateAddress(address: string | null | undefined) {
   return `${address.slice(0, 8)}...${address.slice(-4)}`;
 }
 
-function formatUsdMicro(value: bigint | null) {
-  if (value === null) {
-    return 'Unavailable';
-  }
+function formatPercentFromBps(value: number) {
+  return `${(value / 100).toFixed(2)}%`;
+}
 
-  return `$${(Number(value) / 1_000_000).toFixed(2)}`;
+function formatSignalTimestamp(value: string) {
+  return `${new Intl.DateTimeFormat('en-US', {
+    day: '2-digit',
+    hour: '2-digit',
+    hour12: false,
+    minute: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+    year: 'numeric'
+  }).format(new Date(value))} UTC`;
 }
 
 function formatCount(count: number, singular: string, plural: string) {
@@ -254,8 +264,122 @@ function getArenaActionErrorMessage(error: unknown) {
   return error.message;
 }
 
+function isPreviewEligibleSignal(signal: AgentSignal) {
+  return (
+    signal.resolution === null &&
+    (signal.status === 'generated' || signal.status === 'committed')
+  );
+}
+
+function buildPreviewShowdownCandidates(signals: AgentSignal[]): PreviewShowdownCandidate[] {
+  const signalsByMarket = new Map<string, AgentSignal[]>();
+
+  for (const signal of signals) {
+    if (!isPreviewEligibleSignal(signal)) {
+      continue;
+    }
+
+    const marketSignals = signalsByMarket.get(signal.marketId) ?? [];
+    marketSignals.push(signal);
+    signalsByMarket.set(signal.marketId, marketSignals);
+  }
+
+  return Array.from(signalsByMarket.values())
+    .flatMap((marketSignals) => {
+      let bestCandidate: PreviewShowdownCandidate | null = null;
+      let bestNearMissCandidate: PreviewShowdownCandidate | null = null;
+
+      for (let leftIndex = 0; leftIndex < marketSignals.length; leftIndex += 1) {
+        for (let rightIndex = leftIndex + 1; rightIndex < marketSignals.length; rightIndex += 1) {
+          const left = marketSignals[leftIndex]!;
+          const right = marketSignals[rightIndex]!;
+
+          if (left.agentName === right.agentName) {
+            continue;
+          }
+
+          const source = left.source === right.source ? left.source : `${left.source} + ${right.source}`;
+
+          if (left.side !== 'AVOID' && right.side !== 'AVOID' && left.side !== right.side) {
+            const yesSignal = left.side === 'YES' ? left : right;
+            const noSignal = left.side === 'NO' ? left : right;
+            const candidate: PreviewShowdownCandidate = {
+              kind: 'opposing',
+              marketId: left.marketId,
+              marketQuestion: left.marketQuestion,
+              agentA: {
+                name: yesSignal.agentName,
+                side: 'YES',
+                probabilityBps: yesSignal.agentProbabilityBps
+              },
+              agentB: {
+                name: noSignal.agentName,
+                side: 'NO',
+                probabilityBps: noSignal.agentProbabilityBps
+              },
+              spreadBps: Math.abs(yesSignal.agentProbabilityBps - noSignal.agentProbabilityBps),
+              source
+            };
+
+            if (!bestCandidate || candidate.spreadBps > bestCandidate.spreadBps) {
+              bestCandidate = candidate;
+            }
+            continue;
+          }
+
+          const nearMissCandidate: PreviewShowdownCandidate = {
+            kind: 'near_miss',
+            marketId: left.marketId,
+            marketQuestion: left.marketQuestion,
+            agentA: {
+              name: left.agentName,
+              side: left.side,
+              probabilityBps: left.agentProbabilityBps
+            },
+            agentB: {
+              name: right.agentName,
+              side: right.side,
+              probabilityBps: right.agentProbabilityBps
+            },
+            spreadBps: Math.abs(left.agentProbabilityBps - right.agentProbabilityBps),
+            source
+          };
+
+          if (!bestNearMissCandidate || nearMissCandidate.spreadBps > bestNearMissCandidate.spreadBps) {
+            bestNearMissCandidate = nearMissCandidate;
+          }
+        }
+      }
+
+      return bestCandidate ? [bestCandidate] : bestNearMissCandidate ? [bestNearMissCandidate] : [];
+    })
+    .sort((left, right) => {
+      if (left.spreadBps !== right.spreadBps) {
+        return right.spreadBps - left.spreadBps;
+      }
+
+      return left.marketId.localeCompare(right.marketId);
+    });
+}
+
+function shouldShowPreviewCandidates(discovery: RunAgentsDiscoverySummary | null) {
+  const result = discovery?.result;
+  if (!result) {
+    return true;
+  }
+
+  if (result.opened > 0 || hasSkipReason(result, 'existing-open')) {
+    return false;
+  }
+
+  return true;
+}
+
 export function ArenaDashboard() {
   const [signals, setSignals] = useState<AgentSignal[]>([]);
+  const [signalPage, setSignalPage] = useState(1);
+  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
+  const [latestDiscovery, setLatestDiscovery] = useState<RunAgentsDiscoverySummary | null>(null);
   const [walletFollows, setWalletFollows] = useState<WalletFollowRecord[]>([]);
   const [walletAddress, setWalletAddress] = useState<`0x${string}` | null>(null);
   const [walletChainId, setWalletChainId] = useState<number | null>(null);
@@ -386,7 +510,7 @@ export function ArenaDashboard() {
     }
 
     void refreshWalletReadiness(walletAddress).catch((error) => {
-      setWalletMessage(error instanceof Error ? error.message : 'Wallet readiness unavailable.');
+      setWalletMessage(error instanceof Error ? error.message : 'Wallet status unavailable.');
     });
   }, [walletAddress, refreshWalletReadiness]);
 
@@ -398,6 +522,11 @@ export function ArenaDashboard() {
 
     void refreshWalletFollowSummary(walletAddress, { failSoft: true });
   }, [walletAddress, refreshWalletFollowSummary]);
+
+  useEffect(() => {
+    setSignalPage(1);
+    setSelectedSignalId(null);
+  }, [signals]);
 
   async function connectWallet() {
     setWalletActionState('connecting');
@@ -457,6 +586,7 @@ export function ArenaDashboard() {
     }
 
     setSignals(payload.signals ?? []);
+    setLatestDiscovery(payload.showdowns?.discovery ?? null);
     setWalletMessage(
       buildRunAgentsMessage(payload.signals?.length ?? 0, payload.showdowns?.discovery)
     );
@@ -645,6 +775,16 @@ export function ArenaDashboard() {
     requiredStakeMicroUsdc: displayedFollowSignal?.stakeMicroUsdc ?? 0,
     alreadyFollowed: hasWalletFollowForSignal(walletFollows, displayedFollowSignal?.id, walletAddress)
   });
+  const showdowns = showdownPayload?.showdowns ?? [];
+  const previewCandidates =
+    showdowns.length === 0 && shouldShowPreviewCandidates(latestDiscovery)
+      ? buildPreviewShowdownCandidates(signals).slice(0, PREVIEW_CANDIDATE_LIMIT)
+      : [];
+  const totalSignalPages = Math.max(1, Math.ceil(signals.length / SIGNALS_PAGE_SIZE));
+  const boundedSignalPage = Math.min(signalPage, totalSignalPages);
+  const signalSliceStart = (boundedSignalPage - 1) * SIGNALS_PAGE_SIZE;
+  const visibleSignals = signals.slice(signalSliceStart, signalSliceStart + SIGNALS_PAGE_SIZE);
+  const selectedSignal = signals.find((signal) => signal.id === selectedSignalId) ?? null;
 
   return (
     <section className="arena-dashboard" data-component="arena-dashboard">
@@ -678,10 +818,163 @@ export function ArenaDashboard() {
       <div className="arena-dashboard-layout">
         <div className="arena-dashboard-main">
           <ShowdownGrid
-            showdowns={showdownPayload?.showdowns ?? []}
+            showdowns={showdowns}
+            previewCandidates={previewCandidates}
             loading={!showdownPayload && !showdownError}
             error={showdownError}
           />
+
+          <section className="arena-signal-browser glass-card">
+            <div className="arena-panel-header">
+              <div>
+                <p className="arena-panel-kicker">Run output</p>
+                <h2>Signal browser</h2>
+              </div>
+              <span className="arena-chip arena-chip-muted">{signals.length}</span>
+            </div>
+
+            {signals.length > 0 ? (
+              <>
+                <div className="arena-signal-browser-toolbar">
+                  <p>
+                    Showing {signalSliceStart + 1}-{Math.min(signalSliceStart + visibleSignals.length, signals.length)} of{' '}
+                    {signals.length} signals. Click any row for read-only detail.
+                  </p>
+                  <div className="arena-signal-browser-pagination">
+                    <button
+                      type="button"
+                      className="showdown-grid-more"
+                      onClick={() => setSignalPage((current) => Math.max(1, current - 1))}
+                      disabled={boundedSignalPage === 1}
+                    >
+                      Previous page
+                    </button>
+                    <span>Page {boundedSignalPage} of {totalSignalPages}</span>
+                    <button
+                      type="button"
+                      className="showdown-grid-more"
+                      onClick={() => setSignalPage((current) => Math.min(totalSignalPages, current + 1))}
+                      disabled={boundedSignalPage === totalSignalPages}
+                    >
+                      Next page
+                    </button>
+                  </div>
+                </div>
+
+                <div className="arena-signal-browser-layout">
+                  <div className="arena-signal-list" role="list">
+                    {visibleSignals.map((signal) => (
+                      <button
+                        key={signal.id}
+                        type="button"
+                        className={[
+                          'arena-signal-row',
+                          selectedSignalId === signal.id ? 'arena-signal-row-active' : undefined
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        onClick={() => setSelectedSignalId(signal.id)}
+                      >
+                        <div className="arena-signal-row-copy">
+                          <strong>{signal.marketQuestion}</strong>
+                          <p>
+                            {signal.agentName} · {signal.side} · {signal.confidence}
+                          </p>
+                        </div>
+                        <div className="arena-signal-row-metrics">
+                          <span>{formatPercentFromBps(signal.agentProbabilityBps)}</span>
+                          <small>edge {formatPercentFromBps(signal.edgeBps)}</small>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <section className="arena-signal-detail" data-testid="signal-detail-panel">
+                    <div className="arena-signal-detail-header">
+                      <div>
+                        <p className="arena-panel-kicker">Read-only detail</p>
+                        <h3>Signal detail</h3>
+                      </div>
+                      {selectedSignal ? (
+                        <span className="arena-chip arena-chip-ready">{selectedSignal.side}</span>
+                      ) : (
+                        <span className="arena-chip arena-chip-muted">Select a signal</span>
+                      )}
+                    </div>
+
+                    {selectedSignal ? (
+                      <dl className="arena-signal-detail-grid">
+                        <div>
+                          <dt>Market question</dt>
+                          <dd>{selectedSignal.marketQuestion}</dd>
+                        </div>
+                        <div>
+                          <dt>Agent</dt>
+                          <dd>{selectedSignal.agentName}</dd>
+                        </div>
+                        <div>
+                          <dt>Side</dt>
+                          <dd>{selectedSignal.side}</dd>
+                        </div>
+                        <div>
+                          <dt>Probability</dt>
+                          <dd>{formatPercentFromBps(selectedSignal.agentProbabilityBps)}</dd>
+                        </div>
+                        <div>
+                          <dt>Market price</dt>
+                          <dd>{formatPercentFromBps(selectedSignal.marketPriceBps)}</dd>
+                        </div>
+                        <div>
+                          <dt>Edge</dt>
+                          <dd>{formatPercentFromBps(selectedSignal.edgeBps)}</dd>
+                        </div>
+                        <div>
+                          <dt>Confidence</dt>
+                          <dd>{selectedSignal.confidence}</dd>
+                        </div>
+                        <div>
+                          <dt>Source</dt>
+                          <dd>{selectedSignal.source}</dd>
+                        </div>
+                        <div>
+                          <dt>Model hash</dt>
+                          <dd>
+                            <code>{truncateHash(selectedSignal.modelHash)}</code>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Data hash</dt>
+                          <dd>
+                            <code>{truncateHash(selectedSignal.dataHash)}</code>
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Risk flags</dt>
+                          <dd>
+                            {selectedSignal.riskFlags.length > 0
+                              ? selectedSignal.riskFlags.join(', ')
+                              : 'none'}
+                          </dd>
+                        </div>
+                        <div>
+                          <dt>Timestamp</dt>
+                          <dd>{formatSignalTimestamp(selectedSignal.createdAt)}</dd>
+                        </div>
+                      </dl>
+                    ) : (
+                      <p className="arena-status-note">
+                        No detail selected yet. Run Agents, then click a signal to inspect its
+                        market, hashes, and risk flags without triggering any wallet or admin
+                        action.
+                      </p>
+                    )}
+                  </section>
+                </div>
+              </>
+            ) : (
+              <p className="arena-status-note">No agent run loaded yet.</p>
+            )}
+          </section>
         </div>
 
         <aside className="arena-dashboard-sidebar">
@@ -753,71 +1046,6 @@ export function ArenaDashboard() {
             <p className="arena-status-note">
               {walletActionState === 'idle' ? walletMessage : `${walletActionState}: ${walletMessage}`}
             </p>
-          </section>
-
-          <section className="arena-operator-panel glass-card">
-            <div className="arena-panel-header">
-              <div>
-                <p className="arena-panel-kicker">Wallet readiness</p>
-                <h2>Arc status</h2>
-              </div>
-              <span className={`arena-chip ${controlRoom?.commitAvailable ? 'arena-chip-ready' : 'arena-chip-muted'}`}>
-                {controlRoom?.status ?? 'loading'}
-              </span>
-            </div>
-
-            <div className="arena-status-grid">
-              <article className="arena-status-card">
-                <span>Current wallet</span>
-                <strong>{truncateAddress(walletAddress)}</strong>
-                <small>{walletAddress ? `Arc chain ${walletChainId ?? 'pending'}` : 'Connect from TopNav or action CTA'}</small>
-              </article>
-              <article className="arena-status-card">
-                <span>USDC balance</span>
-                <strong>{formatUsdMicro(walletBalance)}</strong>
-                <small>Connected wallet on Arc</small>
-              </article>
-              <article className="arena-status-card">
-                <span>Allowance</span>
-                <strong>{formatUsdMicro(walletAllowance)}</strong>
-                <small>Approved to SignalBondArena</small>
-              </article>
-              <article className="arena-status-card">
-                <span>Contract readiness</span>
-                <strong>{controlRoom?.arenaAddress ? 'Ready' : 'Unavailable'}</strong>
-                <small>{controlRoom?.reason ?? truncateAddress(controlRoom?.arenaAddress)}</small>
-              </article>
-              <article className="arena-status-card">
-                <span>Latest tx</span>
-                <strong>{truncateHash(controlRoom?.latestTxHash)}</strong>
-                <small>{controlRoom?.usdcDecimals ?? 6} decimals · chain {controlRoom?.chainId ?? 'pending'}</small>
-              </article>
-            </div>
-          </section>
-
-          <section className="arena-operator-panel glass-card">
-            <div className="arena-panel-header">
-              <div>
-                <p className="arena-panel-kicker">Run output</p>
-                <h2>Latest candidates</h2>
-              </div>
-              <span className="arena-chip arena-chip-muted">{signals.length}</span>
-            </div>
-
-            <div className="arena-run-output">
-              {signals.slice(0, 3).map((signal) => (
-                <article key={signal.id} className="arena-run-item">
-                  <div>
-                    <strong>{signal.marketQuestion}</strong>
-                    <p>
-                      {signal.agentName} · {signal.side} · {signal.confidence}
-                    </p>
-                  </div>
-                  <span>{(signal.agentProbabilityBps / 100).toFixed(2)}%</span>
-                </article>
-              ))}
-              {signals.length === 0 ? <p className="arena-status-note">No agent run loaded yet.</p> : null}
-            </div>
           </section>
         </aside>
       </div>
