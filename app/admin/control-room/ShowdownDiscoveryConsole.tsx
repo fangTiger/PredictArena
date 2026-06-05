@@ -190,14 +190,14 @@ export function ShowdownDiscoveryConsole() {
       </div>
 
       <p className="muted">
-        Open eligible admin-gated showdowns explicitly when the Arena is empty. This console only
-        calls the protected discovery endpoint, so regular users never trigger hidden operator
-        transactions from Run Agents.
+        Automatic discovery already runs after Run Agents. Use this console as a manual
+        diagnostic/override when you want to retry the protected discovery endpoint or inspect why
+        Arena stayed empty.
       </p>
 
       <div className="proof-precondition">
-        <strong>Admin-only discovery control</strong>
-        <p>Use this after readiness checks are green and new opposing agent signals should become visible in the Showdown Arena.</p>
+        <strong>Manual diagnostic/override</strong>
+        <p>Use this after readiness checks are green or when you need a manual retry without waiting for another agent run.</p>
         <span>Successful runs report discovered candidates, onchain opens, and skip reasons before you head back to Arena.</span>
       </div>
 

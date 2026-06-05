@@ -51,7 +51,12 @@ describe('ShowdownGrid', () => {
     expect(screen.getByText('No showdowns are open yet.')).toBeInTheDocument();
     expect(
       screen.getByText(
-        'Run Agents only generates signals. Showdowns appear after admin or cron discovery opens the onchain match.'
+        'Run Agents generates fresh signals and automatically attempts to open eligible onchain matches.'
+      )
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Arena can still stay empty when the agents agree, budget or gas safeguards block the open, or that market already has a live matchup.'
       )
     ).toBeInTheDocument();
   });

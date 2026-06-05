@@ -60,7 +60,15 @@ The system SHALL include a new on-chain contract `ShowdownArena` on Arc Testnet 
 
 ### Requirement: Showdown Discovery and Commit Orchestration
 
-The system SHALL discover Showdown candidates server-side by scanning active signals during explicit operator discovery cycles, validate budget and operator-gas constraints, generate a deterministic `externalId`, and invoke the contract's `openShowdown`. Discovery SHALL be idempotent per `(marketId, agentA, agentB)` pair via the `ShowdownStore.hasOpenBetween` check and per the contract's `externalIdToId` mapping. Manual `POST /api/run-agents` calls SHALL generate signals only and SHALL NOT implicitly open Showdowns.
+The system SHALL discover Showdown candidates server-side by scanning active signals after agent-run workflows and during explicit operator override cycles, validate budget and operator-gas constraints, generate a deterministic `externalId`, and invoke the contract's `openShowdown`. Discovery SHALL be idempotent per `(marketId, agentA, agentB)` pair via the `ShowdownStore.hasOpenBetween` check and per the contract's `externalIdToId` mapping. Only `source='live'` signals are eligible for on-chain opening; `demo_snapshot` signals SHALL be ignored by discovery. User-triggered `POST /api/run-agents` calls SHALL save the generated signals, then automatically attempt Showdown discovery with the same budget, gas, and idempotency safeguards used by cron/admin discovery.
+
+#### Scenario: Discovery automatically follows user agent runs
+
+- **WHEN** a visitor triggers `POST /api/run-agents` and the agent run saves fresh signals
+- **THEN** the route SHALL invoke `discoverShowdowns` with default deps
+- **AND** the response SHALL include a `showdowns.discovery` summary with status, result, and/or safe reason code
+- **AND** discovery errors SHALL be caught and SHALL NOT fail the agent-run response
+- **AND** the response SHALL NOT expose private keys, admin tokens, or raw secret values
 
 #### Scenario: Discovery triggered by cron
 
@@ -68,11 +76,18 @@ The system SHALL discover Showdown candidates server-side by scanning active sig
 - **THEN** the system SHALL invoke `discoverShowdowns` with default deps (real persistence, viem clients, agent budget readers)
 - **AND** errors SHALL be caught and logged without aborting the cron cycle
 
-#### Scenario: Discovery triggered by admin operator
+#### Scenario: Discovery triggered by admin operator override
 
 - **WHEN** an authenticated admin operator triggers `POST /api/showdowns/discover`
 - **THEN** the system SHALL invoke `discoverShowdowns` with default deps
 - **AND** return discovered/opened/skipped counts and skip reasons without exposing private keys or admin tokens
+- **AND** this action SHALL remain an override/diagnostic path rather than a required step in the normal visitor flow
+
+#### Scenario: Demo snapshot signals never open on-chain showdowns
+
+- **WHEN** discovery scans active signals and a candidate is sourced from `demo_snapshot`
+- **THEN** the system SHALL treat that signal as ineligible for `openShowdown`
+- **AND** if no live opposing pair remains after filtering, the run SHALL return a no-candidate style skip instead of opening an on-chain Showdown
 
 #### Scenario: Insufficient agent budget
 

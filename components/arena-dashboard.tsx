@@ -28,6 +28,24 @@ interface ShowdownsResponse {
   showdowns: ShowdownCardData[];
 }
 
+interface RunAgentsDiscoverySkip {
+  marketId: string;
+  reason: string;
+  detail?: string;
+}
+
+interface RunAgentsDiscoveryResult {
+  discovered: number;
+  opened: number;
+  skips: RunAgentsDiscoverySkip[];
+}
+
+interface RunAgentsDiscoverySummary {
+  status: 'ok' | 'error';
+  result: RunAgentsDiscoveryResult | null;
+  reason: string | null;
+}
+
 interface WalletFollowResponse {
   follow?: WalletFollowRecord;
   reason?: string;
@@ -51,6 +69,9 @@ interface WalletSummaryResponse {
 
 interface RunAgentsResponse {
   signals: AgentSignal[];
+  showdowns?: {
+    discovery?: RunAgentsDiscoverySummary;
+  };
 }
 
 interface AutonomyResponse {
@@ -74,6 +95,14 @@ type WalletActionState =
   | 'submitting'
   | 'confirming';
 
+const SHOWDOWNS_SWR_KEY = '/api/showdowns?status=all&limit=50';
+const NO_CANDIDATE_SKIP_REASONS = new Set(['no-active-signals', 'no-pair', 'same-side']);
+const WAITING_DISCOVERY_REASONS = new Set([
+  'showdown_discovery_config_missing',
+  'showdown_discovery_bond_invalid',
+  'showdown_discovery_deadline_invalid'
+]);
+
 function truncateHash(hash: string | null | undefined) {
   if (!hash) {
     return 'Pending';
@@ -96,6 +125,78 @@ function formatUsdMicro(value: bigint | null) {
   }
 
   return `$${(Number(value) / 1_000_000).toFixed(2)}`;
+}
+
+function formatCount(count: number, singular: string, plural: string) {
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function isWaitingDiscoveryReason(reason: string | null | undefined) {
+  if (!reason) {
+    return false;
+  }
+
+  return (
+    WAITING_DISCOVERY_REASONS.has(reason) ||
+    reason.startsWith('showdown_discovery_agent_key_missing:')
+  );
+}
+
+function hasSkipReason(result: RunAgentsDiscoveryResult, reason: string) {
+  return result.skips.some((skip) => skip.reason === reason);
+}
+
+function hasOnlyNoCandidateSkips(result: RunAgentsDiscoveryResult) {
+  return (
+    result.skips.length > 0 &&
+    result.skips.every((skip) => NO_CANDIDATE_SKIP_REASONS.has(skip.reason))
+  );
+}
+
+function buildRunAgentsMessage(
+  signalCount: number,
+  discovery: RunAgentsDiscoverySummary | undefined
+) {
+  const prefix = `Generated ${formatCount(signalCount, 'signal', 'signals')}.`;
+
+  if (!discovery) {
+    return `${prefix} Automatic discovery ran after the latest agent run.`;
+  }
+
+  if (discovery.status === 'error') {
+    if (isWaitingDiscoveryReason(discovery.reason)) {
+      return `${prefix} Automatic discovery is waiting on operator configuration before it can open matches.`;
+    }
+
+    return `${prefix} Automatic discovery hit a safe operator error, so Arena may stay unchanged for now.`;
+  }
+
+  const result = discovery.result;
+  if (!result) {
+    return `${prefix} Automatic discovery ran after the latest agent run.`;
+  }
+
+  if (result.opened > 0) {
+    return `${prefix} Automatic discovery opened ${formatCount(
+      result.opened,
+      'showdown',
+      'showdowns'
+    )}. Arena refreshed for live matches.`;
+  }
+
+  if (hasSkipReason(result, 'operator-gas-low') || hasSkipReason(result, 'budget-exhausted')) {
+    return `${prefix} Automatic discovery ran, but budget or gas safeguards kept Arena unchanged.`;
+  }
+
+  if (hasSkipReason(result, 'existing-open')) {
+    return `${prefix} Automatic discovery found an eligible candidate, but that market already has a live showdown.`;
+  }
+
+  if (result.discovered === 0 || hasOnlyNoCandidateSkips(result)) {
+    return `${prefix} Automatic discovery did not find an opposing match yet.`;
+  }
+
+  return `${prefix} Automatic discovery ran, but no new showdown opened this round.`;
 }
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -170,7 +271,7 @@ export function ArenaDashboard() {
   const {
     data: showdownPayload,
     error: showdownError
-  } = useSWR<ShowdownsResponse>('/api/showdowns?status=all&limit=50', fetchJson, {
+  } = useSWR<ShowdownsResponse>(SHOWDOWNS_SWR_KEY, fetchJson, {
     refreshInterval: 30000,
     revalidateOnFocus: true
   });
@@ -356,8 +457,13 @@ export function ArenaDashboard() {
     }
 
     setSignals(payload.signals ?? []);
-    setWalletMessage(`Generated ${payload.signals?.length ?? 0} signals from the latest run.`);
-    await refreshAutonomy();
+    setWalletMessage(
+      buildRunAgentsMessage(payload.signals?.length ?? 0, payload.showdowns?.discovery)
+    );
+    await Promise.all([
+      refreshAutonomy(),
+      mutate(SHOWDOWNS_SWR_KEY).catch(() => undefined)
+    ]);
     return payload;
   }
 
@@ -506,7 +612,7 @@ export function ArenaDashboard() {
         setWalletFollows(refreshedFollows);
       }
       setWalletMessage(
-        `Wallet follow confirmed: ${signal.marketQuestion} · ${truncateHash(payload.follow.txHash ?? txHash)}. Check My for the saved receipt. Showdowns appear after admin or cron discovery opens the match.`
+        `Wallet follow confirmed: ${signal.marketQuestion} · ${truncateHash(payload.follow.txHash ?? txHash)}. Check /my for the saved receipt. Automatic showdown discovery runs after each agent run, and Arena refreshes when a match opens.`
       );
       await refreshWalletReadiness(address);
       await refreshAutonomy();

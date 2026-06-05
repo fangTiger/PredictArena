@@ -34,17 +34,24 @@ The `/` route SHALL render an Editorial-style landing page composed of `TopNav` 
 
 The `/arena` route SHALL render a Glass Neon themed layout consisting of `TopNav` (Glass variant), an optional `PendingFollowsRow`, and `ShowdownGrid`. The dashboard SHALL fetch showdowns client-side via SWR (`/api/showdowns?status=all&limit=50`, 30-second refresh interval).
 
-#### Scenario: Empty showdown grid explains operator discovery
+#### Scenario: Empty showdown grid explains automatic discovery
 
 - **WHEN** `/api/showdowns?status=all&limit=50` returns an empty list
-- **THEN** the `ShowdownGrid` SHALL explain that `Run Agents` generates signals only
-- **AND** it SHALL explain that Showdowns appear after admin or cron discovery opens the on-chain match
+- **THEN** the `ShowdownGrid` SHALL explain that `Run Agents` generates signals and automatically attempts to open eligible on-chain matches
+- **AND** it SHALL explain that an empty result can mean the agents agreed, budget/gas safeguards blocked opening, or an open match already exists
+
+#### Scenario: Run Agents reports automatic discovery outcome
+
+- **WHEN** a visitor clicks `Run Agents`
+- **THEN** the Arena dashboard SHALL save the generated signals in memory
+- **AND** revalidate `/api/showdowns?status=all&limit=50`
+- **AND** display whether automatic Showdown discovery opened matches, skipped all candidates, or is waiting on safe configuration/budget/gas prerequisites
 
 #### Scenario: Wallet follow success gives next-step guidance
 
 - **WHEN** a visitor clicks `Run Agents + Follow` and the wallet follow receipt is confirmed
 - **THEN** the Arena dashboard SHALL tell the visitor to check `/my` for the saved receipt
-- **AND** it SHALL explain that Showdowns appear after admin or cron discovery opens the match
+- **AND** it SHALL explain that automatic discovery runs after each agent run and the Arena refreshes when a match opens
 
 #### Scenario: Showdown card visual states
 
@@ -147,6 +154,7 @@ The Autonomy Panel SHALL be moved out of the top public navigation and into `/ag
 - **THEN** the page SHALL expose a `Discover Showdowns` operator action
 - **AND** when the action succeeds, it SHALL display discovered/opened/skipped counts, skip reason summaries, and a link back to `/arena`
 - **AND** when the action fails, it SHALL display the protected endpoint's safe reason code
+- **AND** the copy SHALL describe the action as a manual diagnostic/override, not a requirement for visitors to see Showdowns
 
 ### Requirement: Agent Control Room / Arc Readiness Panel
 

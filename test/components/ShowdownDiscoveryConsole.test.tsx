@@ -75,7 +75,8 @@ describe('ShowdownDiscoveryConsole', () => {
 
     expect(html).toContain('Discover Showdowns');
     expect(html).toContain('Operator Open Trigger');
-    expect(html).toContain('Open eligible admin-gated showdowns explicitly');
+    expect(html).toContain('Automatic discovery already runs after Run Agents');
+    expect(html).toContain('manual diagnostic/override');
   });
 
   it('posts showdown discovery and renders opened, discovered, and skip summaries', async () => {

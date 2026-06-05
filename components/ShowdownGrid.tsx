@@ -46,8 +46,12 @@ export function ShowdownGrid({ showdowns, loading = false, error = null }: Showd
       <section className="showdown-grid-state">
         <p>No showdowns are open yet.</p>
         <p>
-          Run Agents only generates signals. Showdowns appear after admin or cron discovery opens
-          the onchain match.
+          Run Agents generates fresh signals and automatically attempts to open eligible onchain
+          matches.
+        </p>
+        <p>
+          Arena can still stay empty when the agents agree, budget or gas safeguards block the
+          open, or that market already has a live matchup.
         </p>
       </section>
     );

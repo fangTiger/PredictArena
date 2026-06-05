@@ -45,7 +45,7 @@ function createSignal(overrides: Partial<AgentSignal> = {}): AgentSignal {
     arcTxHash: null,
     createdAt: '2026-06-04T11:00:00.000Z',
     updatedAt: '2026-06-04T11:00:00.000Z',
-    source: 'demo_snapshot',
+    source: 'live',
     resolution: null,
     ...overrides
   };
@@ -131,6 +131,86 @@ describe('discoverShowdowns', () => {
       opened: 0,
       skips: [{ marketId: '*', reason: 'no-active-signals' }]
     });
+  });
+
+  it('filters out demo_snapshot signals before any onchain open attempt', async () => {
+    const openOnChain = vi.fn(async (input: OpenOnChainInput): Promise<OpenOnChainResult> => ({
+      onchainId: 17,
+      txHash: OPEN_TX,
+      openedAt: new Date(NOW_MS).toISOString()
+    }));
+
+    const result = await discoverShowdowns(
+      makeDeps({
+        openOnChain,
+        listActiveSignals: async () => [
+          createSignal({
+            id: 'vol-demo',
+            agentName: 'volatility',
+            side: 'YES',
+            source: 'demo_snapshot'
+          }),
+          createSignal({
+            id: 'mom-demo',
+            agentName: 'momentum',
+            side: 'NO',
+            source: 'demo_snapshot'
+          })
+        ]
+      })
+    );
+
+    expect(result).toEqual({
+      discovered: 0,
+      opened: 0,
+      skips: [{ marketId: '*', reason: 'no-active-signals' }]
+    });
+    expect(openOnChain).not.toHaveBeenCalled();
+  });
+
+  it('ignores demo_snapshot remnants when selecting a live opposing pair', async () => {
+    const openOnChain = vi.fn(async (input: OpenOnChainInput): Promise<OpenOnChainResult> => ({
+      onchainId: 18,
+      txHash: OPEN_TX,
+      openedAt: new Date(NOW_MS).toISOString()
+    }));
+
+    const result = await discoverShowdowns(
+      makeDeps({
+        openOnChain,
+        listActiveSignals: async () => [
+          createSignal({
+            id: 'vol-live',
+            agentName: 'volatility',
+            side: 'YES',
+            source: 'live',
+            agentProbabilityBps: 7200
+          }),
+          createSignal({
+            id: 'mom-live',
+            agentName: 'momentum',
+            side: 'NO',
+            source: 'live',
+            agentProbabilityBps: 3300
+          }),
+          createSignal({
+            id: 'mom-demo',
+            agentName: 'momentum',
+            side: 'NO',
+            source: 'demo_snapshot',
+            agentProbabilityBps: 1000
+          })
+        ]
+      })
+    );
+
+    expect(result).toEqual({ discovered: 1, opened: 1, skips: [] });
+    expect(openOnChain).toHaveBeenCalledTimes(1);
+    const input = openOnChain.mock.calls[0]?.[0] as OpenOnChainInput;
+    expect([input.agentA.probabilityBps, input.agentB.probabilityBps].sort((left, right) => left - right)).toEqual([
+      3300,
+      7200
+    ]);
   });
 
   it('returns no-pair when a market only has one usable active signal', async () => {

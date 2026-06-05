@@ -112,6 +112,13 @@
 - [x] 11.3 Add post-follow guidance that points users to `/my` and explains the operator discovery step. _Executor: Codex_
 - [x] 11.4 Add an admin `/admin/control-room` discovery console for explicit `POST /api/showdowns/discover` execution and result summaries. _Executor: Codex_
 
+## 12. Automatic Showdown Discovery UX (Post-test Feedback)
+
+- [x] 12.1 Auto-attempt `discoverShowdowns` from `POST /api/run-agents` after signals persist; return a safe `showdowns.discovery` summary without failing the run on discovery errors. _Executor: Codex_
+- [x] 12.2 Refresh Arena showdowns and report the automatic discovery outcome after `Run Agents`. _Executor: Codex_
+- [x] 12.3 Update `Run Agents + Follow`, empty Arena, and admin discovery copy so manual admin discovery is clearly an override/diagnostic path, not the normal user flow. _Executor: Codex_
+- [x] 12.4 Add/update focused tests and run OpenSpec validation. _Executor: Codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

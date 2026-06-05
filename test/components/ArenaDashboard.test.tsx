@@ -173,7 +173,20 @@ describe('ArenaDashboard', () => {
         }
 
         if (url === '/api/run-agents') {
-          return createJsonResponse({ signals: [signal] });
+          return createJsonResponse({
+            signals: [signal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 1,
+                  opened: 0,
+                  skips: [{ marketId: signal.marketId, reason: 'existing-open' }]
+                },
+                reason: null
+              }
+            }
+          });
         }
 
         if (url === `/api/wallet/${walletAddress}/summary`) {
@@ -229,7 +242,9 @@ describe('ArenaDashboard', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
 
-    await screen.findByText('Generated 1 signals from the latest run.');
+    await screen.findByText(
+      'Generated 1 signal. Automatic discovery found an eligible candidate, but that market already has a live showdown.'
+    );
     const directFollowButton = await screen.findByRole('button', { name: 'Connect wallet' });
     await waitFor(() => {
       expect(directFollowButton).toBeEnabled();
@@ -252,6 +267,155 @@ describe('ArenaDashboard', () => {
     expect(walletMocks.switchBrowserWalletToArc).not.toHaveBeenCalled();
     expect(walletMocks.createBrowserWalletClients).not.toHaveBeenCalled();
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
+  });
+
+  it('revalidates showdowns and reports opened matches after Run Agents', async () => {
+    let showdownRequests = 0;
+    const signal = createSignal();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          showdownRequests += 1;
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [signal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 1,
+                  opened: 1,
+                  skips: []
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(showdownRequests).toBeGreaterThanOrEqual(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await screen.findByText('Generated 1 signal. Automatic discovery opened 1 showdown. Arena refreshed for live matches.');
+    await waitFor(() => {
+      expect(showdownRequests).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  it('keeps the opened success message when showdown revalidation fails after Run Agents', async () => {
+    let showdownRequests = 0;
+    const signal = createSignal();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          showdownRequests += 1;
+          if (showdownRequests === 1) {
+            return createJsonResponse({ showdowns: [] });
+          }
+
+          return createJsonResponse({ reason: 'showdowns_unavailable' }, 503);
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [signal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 1,
+                  opened: 1,
+                  skips: []
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    await waitFor(() => {
+      expect(showdownRequests).toBeGreaterThanOrEqual(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await waitFor(() => {
+      expect(showdownRequests).toBeGreaterThanOrEqual(2);
+    });
+    expect(
+      screen.getByText('Generated 1 signal. Automatic discovery opened 1 showdown. Arena refreshed for live matches.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Request failed: 503')).not.toBeInTheDocument();
   });
 
   it('checks wallet follow summary before chain reads when run agents plus follow starts disconnected', async () => {
@@ -413,7 +577,7 @@ describe('ArenaDashboard', () => {
     await waitFor(() => {
       expect(
         screen.getByText(
-          /Wallet follow confirmed: .*0x33333333\.\.\.333333\. Check My for the saved receipt\. Showdowns appear after admin or cron discovery opens the match\./i
+          /Wallet follow confirmed: .*0x33333333\.\.\.333333\. Check \/my for the saved receipt\. Automatic showdown discovery runs after each agent run, and Arena refreshes when a match opens\./i
         )
       ).toBeInTheDocument();
     });
@@ -422,5 +586,99 @@ describe('ArenaDashboard', () => {
     });
 
     expect(walletSummaryRequests).toBeGreaterThanOrEqual(3);
+  });
+
+  it('keeps the opened success message when mutate rejects during showdown revalidation', async () => {
+    vi.resetModules();
+
+    const signal = createSignal();
+    const rejectingMutate = vi.fn(async () => {
+      throw new Error('showdown_revalidate_failed');
+    });
+
+    vi.doMock('swr', async () => {
+      const actual = await vi.importActual<typeof import('swr')>('swr');
+      return {
+        ...actual,
+        useSWRConfig: () => ({
+          cache: new Map(),
+          mutate: rejectingMutate
+        })
+      };
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({
+            signals: [signal],
+            showdowns: {
+              discovery: {
+                status: 'ok',
+                result: {
+                  discovered: 1,
+                  opened: 1,
+                  skips: []
+                },
+                reason: null
+              }
+            }
+          });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    const { SWRConfig: DynamicSWRConfig } = await import('swr');
+    const { ArenaDashboard: DynamicArenaDashboard } = await import('@/components/arena-dashboard');
+
+    render(
+      <DynamicSWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+        <DynamicArenaDashboard />
+      </DynamicSWRConfig>
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
+
+    await waitFor(() => {
+      expect(rejectingMutate).toHaveBeenCalledWith('/api/showdowns?status=all&limit=50');
+    });
+    expect(
+      screen.getByText('Generated 1 signal. Automatic discovery opened 1 showdown. Arena refreshed for live matches.')
+    ).toBeInTheDocument();
+    expect(screen.queryByText('showdown_revalidate_failed')).not.toBeInTheDocument();
+
+    vi.doUnmock('swr');
   });
 });

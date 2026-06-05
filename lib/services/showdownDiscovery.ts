@@ -221,6 +221,7 @@ export async function discoverShowdowns(deps: DiscoveryDeps): Promise<DiscoveryR
 
 function isUsableActiveSignal(signal: AgentSignal): boolean {
   return (
+    signal.source !== 'demo_snapshot' &&
     signal.side !== 'AVOID' &&
     signal.resolution === null &&
     (signal.status === 'generated' || signal.status === 'committed')

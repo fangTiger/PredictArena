@@ -55,6 +55,130 @@ describe('PredictArena API routes', () => {
     expect(JSON.stringify(payload)).not.toContain('PRIVATE_KEY');
   });
 
+  it('POST /api/run-agents auto-attempts showdown discovery and returns a safe summary', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new Error('network down')));
+    const discoveryDeps = { scope: 'default-discovery-deps' };
+    const discoveryResult = {
+      discovered: 1,
+      opened: 1,
+      skips: []
+    };
+    const buildDefaultDiscoveryDeps = vi.fn(async () => discoveryDeps);
+    const discoverShowdowns = vi.fn(async () => discoveryResult);
+    vi.doMock('@/lib/services/showdownDiscoveryDefaults', () => ({
+      buildDefaultDiscoveryDeps
+    }));
+    vi.doMock('@/lib/services/showdownDiscovery', () => ({
+      discoverShowdowns
+    }));
+    const { POST } = await import('@/app/api/run-agents/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/run-agents', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 2 }),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(buildDefaultDiscoveryDeps).toHaveBeenCalledTimes(1);
+    expect(discoverShowdowns).toHaveBeenCalledWith(discoveryDeps);
+    expect(payload.showdowns).toMatchObject({
+      discovery: {
+        status: 'ok',
+        result: discoveryResult,
+        reason: null
+      }
+    });
+    expect(JSON.stringify(payload)).not.toContain('SUPABASE_SERVICE_ROLE_KEY');
+    expect(JSON.stringify(payload)).not.toContain('PRIVATE_KEY');
+  });
+
+  it('POST /api/run-agents keeps a 200 response when showdown discovery fails and sanitizes the reason', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new Error('network down')));
+    const rawSecret = 'admin secret sk-live test';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.doMock('@/lib/services/showdownDiscoveryDefaults', () => ({
+      buildDefaultDiscoveryDeps: vi.fn(async () => {
+        throw new Error(rawSecret);
+      })
+    }));
+    vi.doMock('@/lib/services/showdownDiscovery', () => ({
+      discoverShowdowns: vi.fn()
+    }));
+    const { POST } = await import('@/app/api/run-agents/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/run-agents', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 2 }),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.showdowns).toMatchObject({
+      discovery: {
+        status: 'error',
+        result: null,
+        reason: 'showdown_discovery_failed'
+      }
+    });
+    expect(JSON.stringify(payload)).not.toContain(rawSecret);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[run-agents] showdown discovery failed',
+      'showdown_discovery_failed'
+    );
+    expect(warnSpy.mock.calls.flat()).not.toEqual(
+      expect.arrayContaining([expect.any(Error), rawSecret])
+    );
+  });
+
+  it('POST /api/run-agents does not echo token-shaped discovery errors', async () => {
+    vi.stubGlobal('fetch', vi.fn<typeof fetch>().mockRejectedValue(new Error('network down')));
+    const rawSecret = 'sk-live-abc123';
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.doMock('@/lib/services/showdownDiscoveryDefaults', () => ({
+      buildDefaultDiscoveryDeps: vi.fn(async () => {
+        throw new Error(rawSecret);
+      })
+    }));
+    vi.doMock('@/lib/services/showdownDiscovery', () => ({
+      discoverShowdowns: vi.fn()
+    }));
+    const { POST } = await import('@/app/api/run-agents/route');
+
+    const response = await POST(
+      new Request('http://localhost/api/run-agents', {
+        method: 'POST',
+        body: JSON.stringify({ limit: 2 }),
+        headers: { 'content-type': 'application/json' }
+      })
+    );
+    const payload = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(payload.showdowns).toMatchObject({
+      discovery: {
+        status: 'error',
+        result: null,
+        reason: 'showdown_discovery_failed'
+      }
+    });
+    expect(JSON.stringify(payload)).not.toContain(rawSecret);
+    expect(warnSpy).toHaveBeenCalledWith(
+      '[run-agents] showdown discovery failed',
+      'showdown_discovery_failed'
+    );
+    expect(warnSpy.mock.calls.flat()).not.toEqual(
+      expect.arrayContaining([expect.any(Error), rawSecret])
+    );
+  });
+
   it('POST /api/run-agents returns controlled invalid_request for invalid bodies', async () => {
     const { POST } = await import('@/app/api/run-agents/route');
 
