@@ -48,7 +48,12 @@ describe('ShowdownGrid', () => {
     expect(screen.getByText('Showdowns are temporarily unavailable')).toBeInTheDocument();
 
     rerender(<ShowdownGrid showdowns={[]} />);
-    expect(screen.getByText('No showdowns yet')).toBeInTheDocument();
+    expect(screen.getByText('No showdowns are open yet.')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Run Agents only generates signals. Showdowns appear after admin or cron discovery opens the onchain match.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('shows active above settled, keeps sections as layout containers, and expands both lists via show more', () => {

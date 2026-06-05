@@ -60,13 +60,19 @@ The system SHALL include a new on-chain contract `ShowdownArena` on Arc Testnet 
 
 ### Requirement: Showdown Discovery and Commit Orchestration
 
-The system SHALL discover Showdown candidates server-side by scanning active signals after each agent run, validate budget and operator-gas constraints, generate a deterministic `externalId`, and invoke the contract's `openShowdown`. Discovery SHALL be idempotent per `(marketId, agentA, agentB)` pair via the `ShowdownStore.hasOpenBetween` check and per the contract's `externalIdToId` mapping.
+The system SHALL discover Showdown candidates server-side by scanning active signals during explicit operator discovery cycles, validate budget and operator-gas constraints, generate a deterministic `externalId`, and invoke the contract's `openShowdown`. Discovery SHALL be idempotent per `(marketId, agentA, agentB)` pair via the `ShowdownStore.hasOpenBetween` check and per the contract's `externalIdToId` mapping. Manual `POST /api/run-agents` calls SHALL generate signals only and SHALL NOT implicitly open Showdowns.
 
 #### Scenario: Discovery triggered by cron
 
 - **WHEN** the cron route `app/api/cron/run-autonomous-agents/route.ts` completes the agent run step
 - **THEN** the system SHALL invoke `discoverShowdowns` with default deps (real persistence, viem clients, agent budget readers)
 - **AND** errors SHALL be caught and logged without aborting the cron cycle
+
+#### Scenario: Discovery triggered by admin operator
+
+- **WHEN** an authenticated admin operator triggers `POST /api/showdowns/discover`
+- **THEN** the system SHALL invoke `discoverShowdowns` with default deps
+- **AND** return discovered/opened/skipped counts and skip reasons without exposing private keys or admin tokens
 
 #### Scenario: Insufficient agent budget
 
@@ -97,6 +103,13 @@ The system SHALL aggregate per-wallet data (follows, USDC balance, USDC allowanc
 
 - **WHEN** the endpoint serializes `usdcBalanceMicro`, `usdcAllowanceMicro`, `cumulativeBondedMicro`, `cumulativePayoutMicro`, `currentNetPnlMicro`, or any follow's `bondedMicroUsdc` / `payoutMicroUsdc`
 - **THEN** the value SHALL be returned as a base-10 decimal string (not a JSON number) to preserve precision
+
+#### Scenario: Persisted wallet follow receipt status
+
+- **WHEN** a `WalletFollowRecord` exists for the requested wallet because `/api/wallet/follows` verified and persisted the on-chain receipt
+- **THEN** the wallet summary SHALL report the follow as `confirmed` unless the joined signal has a resolution
+- **AND** if the joined signal has a resolution, the wallet summary SHALL report `resolved-win` or `resolved-loss` from that resolution
+- **AND** the status SHALL NOT remain `pending` merely because the joined signal itself is still `generated`
 
 ## MODIFIED Requirements
 

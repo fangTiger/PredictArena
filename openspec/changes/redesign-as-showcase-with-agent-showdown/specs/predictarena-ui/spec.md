@@ -34,6 +34,18 @@ The `/` route SHALL render an Editorial-style landing page composed of `TopNav` 
 
 The `/arena` route SHALL render a Glass Neon themed layout consisting of `TopNav` (Glass variant), an optional `PendingFollowsRow`, and `ShowdownGrid`. The dashboard SHALL fetch showdowns client-side via SWR (`/api/showdowns?status=all&limit=50`, 30-second refresh interval).
 
+#### Scenario: Empty showdown grid explains operator discovery
+
+- **WHEN** `/api/showdowns?status=all&limit=50` returns an empty list
+- **THEN** the `ShowdownGrid` SHALL explain that `Run Agents` generates signals only
+- **AND** it SHALL explain that Showdowns appear after admin or cron discovery opens the on-chain match
+
+#### Scenario: Wallet follow success gives next-step guidance
+
+- **WHEN** a visitor clicks `Run Agents + Follow` and the wallet follow receipt is confirmed
+- **THEN** the Arena dashboard SHALL tell the visitor to check `/my` for the saved receipt
+- **AND** it SHALL explain that Showdowns appear after admin or cron discovery opens the match
+
 #### Scenario: Showdown card visual states
 
 - **WHEN** a `ShowdownCard` renders for an `Open` Showdown
@@ -128,6 +140,13 @@ The Autonomy Panel SHALL be moved out of the top public navigation and into `/ag
 - **THEN** no Autonomy Panel UI SHALL be visible
 - **WHEN** an authenticated admin opens `/admin/control-room`
 - **THEN** the Autonomy Panel UI MAY appear as part of the operator readiness view
+
+#### Scenario: Admin operator triggers showdown discovery
+
+- **WHEN** an authenticated admin opens `/admin/control-room`
+- **THEN** the page SHALL expose a `Discover Showdowns` operator action
+- **AND** when the action succeeds, it SHALL display discovered/opened/skipped counts, skip reason summaries, and a link back to `/arena`
+- **AND** when the action fails, it SHALL display the protected endpoint's safe reason code
 
 ### Requirement: Agent Control Room / Arc Readiness Panel
 

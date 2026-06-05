@@ -105,6 +105,13 @@
 - [ ] 10.9 Configure production env (`NEXT_PUBLIC_SHOWDOWN_ARENA_ADDRESS`, `ADMIN_ACCESS_TOKEN`). _Executor: Claude_
 - [ ] 10.10 Production deploy + smoke test. _Executor: Claude_
 
+## 11. Follow + Showdown UX Fixes (Post-test Feedback)
+
+- [x] 11.1 Treat persisted wallet follow receipts as `confirmed` until resolution, even if the joined signal is still `generated`. _Executor: Codex_
+- [x] 11.2 Clarify the empty Arena state so users know `Run Agents` creates signals and admin/cron discovery opens Showdowns. _Executor: Codex_
+- [x] 11.3 Add post-follow guidance that points users to `/my` and explains the operator discovery step. _Executor: Codex_
+- [x] 11.4 Add an admin `/admin/control-room` discovery console for explicit `POST /api/showdowns/discover` execution and result summaries. _Executor: Codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

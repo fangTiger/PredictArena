@@ -84,19 +84,11 @@ function normalizeWalletAddress(walletAddress: string): string {
 function deriveFollowStatus(
   signal: AgentSignal | undefined
 ): WalletFollow['status'] {
-  if (!signal) {
-    return 'pending';
-  }
-
-  if (signal.resolution) {
+  if (signal?.resolution) {
     return signal.resolution.outcomeCorrect ? 'resolved-win' : 'resolved-loss';
   }
 
-  if (signal.status === 'committed') {
-    return 'confirmed';
-  }
-
-  return 'pending';
+  return 'confirmed';
 }
 
 function toWalletFollow(

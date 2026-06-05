@@ -188,7 +188,7 @@ describe('WalletBindingsFacade', () => {
     expect(summary.currentNetPnlMicro).toBe(50_000n);
   });
 
-  it('treats missing and non-committed signals as pending', async () => {
+  it('treats persisted follows without resolutions as confirmed even when signals are generated or missing', async () => {
     const generatedSignal = createSignal({
       id: 'signal-generated',
       status: 'generated',
@@ -219,12 +219,12 @@ describe('WalletBindingsFacade', () => {
         marketId: 'missing-signal',
         marketQuestion: '(market unavailable)',
         side: 'YES',
-        status: 'pending',
+        status: 'confirmed',
         payoutMicroUsdc: null
       }),
       expect.objectContaining({
         signalId: 'signal-generated',
-        status: 'pending'
+        status: 'confirmed'
       })
     ]);
   });

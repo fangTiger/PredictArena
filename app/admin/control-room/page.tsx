@@ -2,6 +2,7 @@ import React from 'react';
 import { TxLink } from '@/components/TxLink';
 import { getArcControlRoomState, type ArcControlRoomState } from '@/lib/arc/controlRoom';
 import { formatMicroUsdc } from '@/lib/utils/format';
+import { ShowdownDiscoveryConsole } from './ShowdownDiscoveryConsole';
 
 export const dynamic = 'force-dynamic';
 
@@ -171,6 +172,8 @@ export default async function AdminControlRoomPage() {
           </div>
         </article>
       </section>
+
+      <ShowdownDiscoveryConsole />
 
       <section className="panel proof-wallet-panel" aria-labelledby="control-room-wallets-title">
         <div className="panel-header">

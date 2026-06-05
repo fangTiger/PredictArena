@@ -277,7 +277,7 @@ describe('ArenaDashboard', () => {
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
   });
 
-  it('confirms the wallet follow and refreshes summary after approve plus commit succeeds', async () => {
+  it('guides the user after run agents plus follow confirms a wallet receipt', async () => {
     walletMocks.readBrowserWalletSession.mockReturnValue({
       walletAddress,
       chainId: 5042002,
@@ -330,6 +330,7 @@ describe('ArenaDashboard', () => {
     };
 
     let walletSummaryRequests = 0;
+    let followPersisted = false;
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
@@ -360,7 +361,7 @@ describe('ArenaDashboard', () => {
 
         if (url === `/api/wallet/${walletAddress}/summary`) {
           walletSummaryRequests += 1;
-          const follows = walletSummaryRequests >= 3 ? [confirmedSummaryFollow] : [historicalSummaryFollow];
+          const follows = followPersisted ? [confirmedSummaryFollow, historicalSummaryFollow] : [historicalSummaryFollow];
           return createJsonResponse({
             walletAddress,
             follows,
@@ -369,6 +370,7 @@ describe('ArenaDashboard', () => {
         }
 
         if (url === '/api/wallet/follows' && init?.method === 'POST') {
+          followPersisted = true;
           return createJsonResponse({
             follow: {
               ...confirmedFollow,
@@ -384,14 +386,6 @@ describe('ArenaDashboard', () => {
 
     renderDashboard();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
-
-    await screen.findByText('Generated 1 signals from the latest run.');
-    const approveButton = await screen.findByRole('button', { name: 'Approve USDC' });
-    await waitFor(() => {
-      expect(approveButton).toBeEnabled();
-    });
-
     let resolveCommit: (hash: `0x${string}`) => void = () => undefined;
     arenaMocks.commitArenaSignal.mockReturnValue(
       new Promise<`0x${string}`>((resolve) => {
@@ -400,7 +394,7 @@ describe('ArenaDashboard', () => {
     );
     usdcMocks.ensureUsdcAllowance.mockResolvedValue(`0x${'2'.repeat(64)}`);
 
-    fireEvent.click(approveButton);
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents + Follow' }));
 
     await waitFor(() => {
       expect(usdcMocks.ensureUsdcAllowance).toHaveBeenCalled();
@@ -417,7 +411,11 @@ describe('ArenaDashboard', () => {
     resolveCommit(`0x${'3'.repeat(64)}`);
 
     await waitFor(() => {
-      expect(screen.getByText(/Wallet follow confirmed: .*0x33333333\.\.\.333333/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Wallet follow confirmed: .*0x33333333\.\.\.333333\. Check My for the saved receipt\. Showdowns appear after admin or cron discovery opens the match\./i
+        )
+      ).toBeInTheDocument();
     });
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Followed' })).toBeDisabled();

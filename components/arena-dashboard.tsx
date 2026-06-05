@@ -506,7 +506,7 @@ export function ArenaDashboard() {
         setWalletFollows(refreshedFollows);
       }
       setWalletMessage(
-        `Wallet follow confirmed: ${signal.marketQuestion} · ${truncateHash(payload.follow.txHash ?? txHash)}.`
+        `Wallet follow confirmed: ${signal.marketQuestion} · ${truncateHash(payload.follow.txHash ?? txHash)}. Check My for the saved receipt. Showdowns appear after admin or cron discovery opens the match.`
       );
       await refreshWalletReadiness(address);
       await refreshAutonomy();

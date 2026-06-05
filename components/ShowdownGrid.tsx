@@ -42,7 +42,15 @@ export function ShowdownGrid({ showdowns, loading = false, error = null }: Showd
   }
 
   if (showdowns.length === 0) {
-    return <section className="showdown-grid-state">No showdowns yet</section>;
+    return (
+      <section className="showdown-grid-state">
+        <p>No showdowns are open yet.</p>
+        <p>
+          Run Agents only generates signals. Showdowns appear after admin or cron discovery opens
+          the onchain match.
+        </p>
+      </section>
+    );
   }
 
   return (
