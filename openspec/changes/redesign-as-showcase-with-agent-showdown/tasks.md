@@ -100,8 +100,8 @@
 - [x] 10.4 Visual polish pass (color tokens, spacing, hover states). _Executor: Claude_
 - [x] 10.5 Update README + `docs/circle-submission.md` for Arc builder application. _Executor: Claude_
 - [x] 10.6 Update spec §5.1 to align with the RSC-not-SWR data strip decision. _Executor: Claude_
-- [ ] 10.7 Deploy ShowdownArena to Arc Testnet via `scripts/deploy-showdown-arena.ts`. _Executor: Claude (manual deploy)_
-- [ ] 10.8 Approve USDC for agent wallets against ShowdownArena. _Executor: Claude (manual tx)_
+- [x] 10.7 Deploy ShowdownArena to Arc Testnet via `scripts/deploy-showdown-arena.ts`. _Executor: Claude (manual deploy)_
+- [x] 10.8 Approve USDC for agent wallets against ShowdownArena. _Executor: Claude (manual tx)_
 - [ ] 10.9 Configure production env (`NEXT_PUBLIC_SHOWDOWN_ARENA_ADDRESS`, `ADMIN_ACCESS_TOKEN`). _Executor: Claude_
 - [ ] 10.10 Production deploy + smoke test. _Executor: Claude_
 
