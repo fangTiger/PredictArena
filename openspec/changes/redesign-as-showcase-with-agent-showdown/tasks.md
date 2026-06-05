@@ -94,9 +94,9 @@
 
 ## 10. Polish, E2E, Docs, Deploy (Plan Chunk 10)
 
-- [ ] 10.1 Write Playwright E2E: home flow. _Executor: Codex_
-- [ ] 10.2 Write Playwright E2E: arena showdown flow (with seeded `localStorage` wallet stub). _Executor: Codex_
-- [ ] 10.3 Write Playwright E2E: my-dashboard flow. _Executor: Codex_
+- [x] 10.1 Write Playwright E2E: home flow. _Executor: Codex_
+- [x] 10.2 Write Playwright E2E: arena showdown flow (with seeded `localStorage` wallet stub). _Executor: Codex_
+- [x] 10.3 Write Playwright E2E: my-dashboard flow. _Executor: Codex_
 - [ ] 10.4 Visual polish pass (color tokens, spacing, hover states). _Executor: Claude_
 - [ ] 10.5 Update README + `docs/circle-submission.md` for Arc builder application. _Executor: Claude_
 - [ ] 10.6 Update spec §5.1 to align with the RSC-not-SWR data strip decision. _Executor: Claude_

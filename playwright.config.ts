@@ -31,6 +31,7 @@ export default defineConfig({
       ADMIN_ACCESS_TOKEN: 'playwright-admin-token',
       ALLOW_DEMO_SNAPSHOT: 'true',
       PREDICTARENA_LOCAL_STORE_PATH: '/tmp/predictarena-playwright-store.json',
+      SHOWDOWN_LOCAL_FILE: '/tmp/predictarena-playwright-showdowns.json',
       PROOF_MODE_SECRET: 'playwright-proof-secret',
       PROOF_SMOKE_MAX_STAKE_USDC6: '50000',
       PROOF_SMOKE_MAX_DAILY_USDC6: '100000',
