@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const root = process.cwd();
 
 describe('wallet-funded follow UI wiring', () => {
-  it('assembles the editorial home via dedicated components while rewiring arena around showdowns', async () => {
+  it('assembles the protocol glass home via dedicated components while rewiring arena around showdowns', async () => {
     const [rootPage, arenaPage, arenaDashboard, pageShell, adminShell, walletButton, displayControls, globalsCss] = await Promise.all([
       fs.readFile(path.join(root, 'app/page.tsx'), 'utf8'),
       fs.readFile(path.join(root, 'app/arena/page.tsx'), 'utf8'),
@@ -18,7 +18,8 @@ describe('wallet-funded follow UI wiring', () => {
     ]);
 
     expect(rootPage).toContain('TopNav');
-    expect(rootPage).toContain('variant="editorial"');
+    expect(rootPage).toContain('variant="glass"');
+    expect(rootPage).toContain('data-page-surface="protocol-glass"');
     expect(rootPage).toContain('HomeHero');
     expect(rootPage).toContain('HomeDataStrip');
     expect(rootPage).toContain('HomeNarrative');
@@ -26,9 +27,8 @@ describe('wallet-funded follow UI wiring', () => {
     expect(rootPage).toContain('getHomeStripData');
     expect(rootPage).not.toContain("redirect('/arena')");
     expect(rootPage).not.toContain('Showcase landing placeholder');
-    expect(globalsCss).toMatch(
-      /@media\s*\(max-width:\s*560px\)\s*\{[\s\S]*?\.home-hero-subtitle\s*\{[\s\S]*?text-wrap:\s*balance;/m
-    );
+    expect(globalsCss).toContain('.home-protocol-main');
+    expect(globalsCss).toContain('.home-protocol-shell .topnav');
     expect(arenaPage).toContain('return <ArenaDashboard />');
     expect(arenaPage).not.toContain('getRuntimeStore');
     expect(arenaPage).not.toContain('fetchCandidateMarkets');

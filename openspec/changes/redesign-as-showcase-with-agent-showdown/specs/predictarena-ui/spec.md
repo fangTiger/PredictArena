@@ -2,22 +2,25 @@
 
 ## ADDED Requirements
 
-### Requirement: Editorial Home Landing UI
+### Requirement: Protocol Glass Home Landing UI
 
-The `/` route SHALL render an Editorial-style landing page composed of `TopNav` (Editorial variant), `HomeHero`, `HomeDataStrip`, `HomeNarrative`, and `HomeTransitionFooter`. The page SHALL be a React Server Component (`force-dynamic`) that fetches KPI data once per request via `getHomeStripData()`.
+The `/` route SHALL render a Protocol Glass landing page composed of `TopNav` (Glass variant), `HomeHero`, `HomeDataStrip`, `HomeNarrative`, and `HomeTransitionFooter`. The page SHALL be a React Server Component (`force-dynamic`) that fetches KPI data once per request via `getHomeStripData()`.
 
 #### Scenario: Hero displays locked statement
 
 - **WHEN** the home page renders
-- **THEN** the H1 element SHALL contain the lead text "AI agents," and an `<em>` element containing "betting with proof." styled in the Editorial accent color
+- **THEN** the H1 element SHALL contain the lead text "AI agents," and an `<em>` element containing "betting with proof." styled in the Protocol Glass mint/cyan accent
 - **AND** the tagline "LIVE ON ARC TESTNET" SHALL appear above the H1
 - **AND** if the latest Arc block number is available, it SHALL be appended as "· BLOCK X" with thousands separators
+- **AND** the first viewport SHALL avoid an enclosed black editorial frame; the hero SHALL sit on the same glass/protocol background system used by the other public pages
+- **AND** the hero SHALL expose clear `Enter Arena` and `View Agents` calls to action without requiring wallet connection
 
 #### Scenario: Data strip 4 columns
 
 - **WHEN** the home page renders
 - **THEN** the page SHALL display 4 cells labeled "ACTIVE SIGNALS", "USDC BONDED", "AGENT ACCURACY", "SHOWDOWNS WON" with numeric values and trend text
 - **AND** the showdowns cell SHALL be marked `data-source="placeholder"` only when the showdown service has not yet been wired (Chunk 5 dependency); once Chunk 6 lands the marker SHALL be removed
+- **AND** the strip SHALL read as a lightweight live tape or protocol metric row instead of a heavy grid locked inside a black box
 
 #### Scenario: Narrative two-column layout
 
@@ -25,10 +28,10 @@ The `/` route SHALL render an Editorial-style landing page composed of `TopNav` 
 - **THEN** below the data strip the page SHALL display a two-column section with "The Premise" (left) and "How to Watch" (right), with copy strings sourced from `lib/config/homeCopy.ts`
 - **AND** the "How to Watch" column SHALL render exactly 3 `<p data-watch-item>` items
 
-#### Scenario: Editorial→Glass transition footer
+#### Scenario: Protocol transition footer
 
 - **WHEN** the home page renders
-- **THEN** the page SHALL end with a `HomeTransitionFooter` containing a link to `/arena` labeled "Enter Arena →" styled as a glass-neon pill on a gradient background that transitions from Editorial to Glass tokens
+- **THEN** the page SHALL end with a `HomeTransitionFooter` containing a link to `/arena` labeled "Enter Arena →" styled as a glass/protocol pill on the same page background system
 
 ### Requirement: Glass Neon Arena UI
 
@@ -145,12 +148,13 @@ The `/admin/*` subtree SHALL be gated by a server-side cookie check against `ADM
 
 ### Requirement: War Room Prediction-Market Atmosphere
 
-The site's visual identity SHALL adopt a deliberate hybrid: **Editorial Mono** on the `/` landing page (dark background, oversized italic statement, single accent color) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
+The site's visual identity SHALL adopt a deliberate hybrid: **Protocol Glass** on the `/` landing page (Hyper Foundation-inspired restraint, fluid dark protocol background, compact top navigation, centered proof narrative, and lightweight live metrics) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
 
 #### Scenario: Token availability
 
 - **WHEN** any redesigned page renders
 - **THEN** the CSS variables `--editorial-bg`, `--editorial-fg`, `--editorial-accent`, `--glass-bg`, `--glass-card-bg`, `--glass-card-border`, `--color-yes`, `--color-no`, `--color-success`, `--color-error`, and the utility classes `.editorial-page`, `.glass-page`, `.glass-card`, `.admin-page` SHALL be available
+- **AND** the homepage SHALL be allowed to reuse the glass page utilities while keeping the existing editorial variables for compatibility and admin/spec history
 
 ### Requirement: Responsive Operational Layout
 

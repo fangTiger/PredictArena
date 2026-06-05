@@ -22,6 +22,18 @@ describe('HomeHero', () => {
     ).toBeInTheDocument();
   });
 
+  it('renders protocol glass stage markup with primary hero actions', () => {
+    const { container } = render(<HomeHero blockNumber={8_412_390} />);
+
+    expect(container.querySelector('[data-surface="protocol-glass"]')).toBeInTheDocument();
+
+    const arenaLink = screen.getByRole('link', { name: /enter arena/i });
+    const agentsLink = screen.getByRole('link', { name: /view agents/i });
+
+    expect(arenaLink).toHaveAttribute('href', '/arena');
+    expect(agentsLink).toHaveAttribute('href', '/agents');
+  });
+
   it('formats block number with thousands separators', () => {
     render(<HomeHero blockNumber={12_345_678} />);
     expect(screen.getByText(/block 12,345,678/i)).toBeInTheDocument();
@@ -31,5 +43,13 @@ describe('HomeHero', () => {
     render(<HomeHero blockNumber={null} />);
     expect(screen.getByText(/live on arc testnet/i)).toBeInTheDocument();
     expect(screen.queryByText(/block/i)).toBeNull();
+  });
+
+  it('offers primary protocol entry points from the first viewport', () => {
+    const { container } = render(<HomeHero blockNumber={8_412_390} />);
+
+    expect(container.querySelector('[data-home-visual="protocol-glass"]')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /enter arena/i })).toHaveAttribute('href', '/arena');
+    expect(screen.getByRole('link', { name: /view agents/i })).toHaveAttribute('href', '/agents');
   });
 });

@@ -19,9 +19,9 @@ export default async function HomePage() {
   const strip = await getHomeStripData();
 
   return (
-    <div className="editorial-page home-editorial-shell">
-      <TopNav variant="editorial" />
-      <main className="home-editorial-main">
+    <div className="glass-page home-protocol-shell" data-page-surface="protocol-glass">
+      <TopNav variant="glass" />
+      <main className="home-protocol-main">
         <HomeHero blockNumber={strip.blockNumber} />
         <HomeDataStrip
           activeSignals={strip.activeSignals}

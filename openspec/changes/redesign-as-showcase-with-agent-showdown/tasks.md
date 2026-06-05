@@ -47,7 +47,7 @@
 - [x] 4.4 TDD `HomeNarrative` component (Premise + How to Watch). _Executor: Codex_
 - [x] 4.5 Build `lib/arc/blockNumber.ts` + DI-friendly `getHomeStripData` in `lib/services/homeData.ts`. _Executor: Codex_
 - [x] 4.6 Replace `app/page.tsx` placeholder with full RSC home. _Executor: Codex_
-- [x] 4.7 Add `HomeTransitionFooter` (Editorial→Glass bridge per Appendix A). _Executor: Codex_
+- [x] 4.7 Add `HomeTransitionFooter` (protocol transition bridge per Appendix A). _Executor: Codex_
 
 ## 5. Showdown Backend Part 1 (Plan Chunk 5)
 
@@ -125,6 +125,13 @@
 - [x] 13.2 Promote Run Output into a paginated, clickable signal browser with a read-only detail view. _Executor: Codex_
 - [x] 13.3 Render UI-only preview Showdown candidates when real showdowns are empty but the latest run has opposing signals; label previews as not on-chain. _Executor: Codex_
 - [x] 13.4 Add/update focused component tests and run OpenSpec validation. _Executor: Codex_
+
+## 14. Home Protocol Glass Refresh (Post-test Feedback)
+
+- [x] 14.1 Replace the `/` first viewport from the enclosed Editorial Mono frame to a Protocol Glass surface aligned with `/arena`, `/agents`, and `/my`; remove the heavy black framed grid impression. _Executor: worker-codex → Architecture Codex fallback_
+- [x] 14.2 Add prominent `Enter Arena` and `View Agents` hero calls to action while keeping locked homepage copy and KPI data flow. _Executor: worker-codex → Architecture Codex fallback_
+- [x] 14.3 Restyle the KPI strip as a lightweight live tape/protocol metrics row instead of a boxed editorial grid. _Executor: worker-codex → Architecture Codex fallback_
+- [x] 14.4 Add/update focused home component and E2E tests, run OpenSpec validation, and perform desktop/mobile screenshot verification. _Executor: worker-codex + review-codex_
 
 ## Acceptance Criteria (Stage 6 verification gates)
 

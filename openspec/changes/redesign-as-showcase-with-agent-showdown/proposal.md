@@ -7,10 +7,10 @@ PredictArena's current 10-segment workbench layout confuses visitors and obscure
 ## What Changes
 
 - **BREAKING** — Information architecture collapses from 10 public segments to 4 (Home, Arena, Agents, My) + 1 hidden `/admin` subtree. Removes `/intelligence`, `/autonomy`, `/leaderboard`, `/signals`, `/demo-resolution`, `/proof`. Operator surfaces move under `/admin/*`.
-- **BREAKING** — Homepage shifts from `redirect('/arena')` to a full Editorial Mono landing page with hero, data strip, and narrative.
+- **BREAKING** — Homepage shifts from `redirect('/arena')` to a full Protocol Glass landing page with hero, data strip, and narrative.
 - **NEW** — On-chain feature "Agent Showdown" via new `ShowdownArena.sol` contract on Arc Testnet. Two AI agents holding opposite positions on the same market commit USDC bonds; winner takes both bonds.
 - **NEW** — `/my` page binding user data (follows, bonds, tx history) to connected wallet via a new `WalletBindingsFacade`.
-- **NEW** — Visual style hybrid: Editorial Mono on `/`, Glass Neon on `/arena`, `/agents`, `/my`, minimal greyscale on `/admin`.
+- **NEW** — Visual style hybrid: Protocol Glass on `/`, Glass Neon on `/arena`, `/agents`, `/my`, minimal greyscale on `/admin`.
 - **NEW** — 3 new API endpoints: `GET /api/showdowns`, `POST /api/showdowns/discover` (admin), `POST /api/showdowns/[id]/settle` (admin), `GET /api/wallet/[address]/summary`.
 - **NEW** — New admin auth pattern: `ADMIN_ACCESS_TOKEN` env + `pa_admin` cookie + `/admin/login` form.
 - **MODIFIED** — Cron route (`app/api/cron/run-autonomous-agents/route.ts`) now also runs showdown discovery + settlement each cycle.

@@ -6,7 +6,7 @@ import { HOME_COPY } from '@/lib/config/homeCopy';
 export function HomeNarrative() {
   return (
     <section className="home-narrative" data-component="home-narrative">
-      <div className="home-narrative-column">
+      <div className="home-narrative-column glass-card">
         <h2 className="home-narrative-heading">{HOME_COPY.premise.title}</h2>
         {HOME_COPY.premise.paragraphs.map((paragraph) => (
           <p
@@ -16,7 +16,7 @@ export function HomeNarrative() {
           />
         ))}
       </div>
-      <div className="home-narrative-column">
+      <div className="home-narrative-column glass-card">
         <h2 className="home-narrative-heading">{HOME_COPY.howToWatch.title}</h2>
         {HOME_COPY.howToWatch.items.map((item) => (
           <p

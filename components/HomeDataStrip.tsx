@@ -38,7 +38,13 @@ export function HomeDataStrip({
   showdownsLeaderName
 }: HomeDataStripProps) {
   return (
-    <section className="home-data-strip" data-component="home-data-strip">
+    <section
+      className="home-data-strip glass-card"
+      data-component="home-data-strip"
+      data-strip-style="live-tape"
+      data-home-tape="protocol-metrics"
+      aria-label="Live protocol metrics"
+    >
       <StripCell
         label={HOME_COPY.strip.activeSignals}
         value={numberFormatter.format(activeSignals)}
@@ -76,6 +82,7 @@ function StripCell({
     <div
       className="home-strip-cell"
       data-strip-cell
+      data-tape-cell
       data-source="live"
       aria-label={`${label} ${value} ${trend}`}
     >

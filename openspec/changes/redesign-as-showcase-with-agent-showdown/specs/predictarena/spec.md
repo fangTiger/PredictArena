@@ -169,8 +169,9 @@ The system's user flows SHALL be designed for **showcase consumption** — Arc b
 #### Scenario: Showcase user opens the homepage
 
 - **WHEN** a first-time visitor lands on `/`
-- **THEN** the page SHALL render the Editorial-style hero with locked statement "AI agents, betting with proof."
+- **THEN** the page SHALL render the Protocol Glass hero with locked statement "AI agents, betting with proof."
 - **AND** display 4 KPI cells (Active Signals, USDC Bonded, Agent Accuracy, Showdowns Won) and a two-column narrative (The Premise, How to Watch) within the first scroll
+- **AND** the first viewport SHALL make the product feel like a cohesive PredictArena protocol surface, not an enclosed black editorial frame
 - **AND** the homepage SHALL NOT require wallet connection to display any of the above content
 
 ## REMOVED Requirements

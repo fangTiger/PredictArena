@@ -16,7 +16,7 @@ describe('HomeDataStrip', () => {
   } as const;
 
   it('renders all 4 columns with correct labels and values', () => {
-    render(<HomeDataStrip {...baseProps} />);
+    const { container } = render(<HomeDataStrip {...baseProps} />);
 
     expect(screen.getByText('ACTIVE SIGNALS')).toBeInTheDocument();
     expect(screen.getByText(/^12$/)).toBeInTheDocument();
@@ -27,6 +27,7 @@ describe('HomeDataStrip', () => {
     expect(screen.getByText('SHOWDOWNS WON')).toBeInTheDocument();
     expect(screen.getByText(/^47$/)).toBeInTheDocument();
     expect(screen.getByText(/volatility leads/i)).toBeInTheDocument();
+    expect(container.querySelector('[data-strip-style="live-tape"]')).toBeInTheDocument();
   });
 
   it('marks every strip cell as live once showdown data is wired', () => {
@@ -53,5 +54,12 @@ describe('HomeDataStrip', () => {
   it('formats USDC with thousands separators as whole USDC labels', () => {
     render(<HomeDataStrip {...baseProps} usdcBondedMicro={1_234_567_499_999n} />);
     expect(screen.getByText('1,234,567')).toBeInTheDocument();
+  });
+
+  it('marks the KPI section as a live protocol tape', () => {
+    const { container } = render(<HomeDataStrip {...baseProps} />);
+
+    expect(container.querySelector('[data-home-tape="protocol-metrics"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-tape-cell]')).toHaveLength(4);
   });
 });

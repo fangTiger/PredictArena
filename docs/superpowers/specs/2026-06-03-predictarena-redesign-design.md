@@ -33,7 +33,7 @@
 |---|---|---|
 | 战略 | 深化 PredictArena 为旗舰 + 加 1 个 Hook | ✅ 锁定 |
 | Hook | **Hook 01 · Agent Showdown** | ✅ 锁定 |
-| 视觉 | 首页 **Editorial Mono** + 内页 **Glass Neon** 混搭 | ✅ 锁定 |
+| 视觉 | 首页 **Protocol Glass** + 内页 **Glass Neon** 混搭 | ✅ 锁定（Chunk 14 根据用户视觉反馈修订） |
 | Project 2 | **OracleArena**（独立 subdomain，本轮不留口） | ✅ 锁定 |
 | 合约策略 | **新合约 `ShowdownArena.sol`**，不扩展现有 `SignalBondArena.sol` | ✅ 锁定（v2） |
 | 首页大标语 | `AI agents, betting with proof.` | ✅ 锁定（v2） |
@@ -158,7 +158,7 @@
 ```
 当前 (10 个公开 segment)          重设计 (4 公开 + 1 隐藏 admin)
 ─────────                          ────────────────
-/ (redirect to arena)              / · Home (Editorial 着陆页)
+/ (redirect to arena)              / · Home (Protocol Glass 着陆页)
 /arena                             /arena · Live Showdowns
 /signals                ─┐
 /intelligence            ├──→     /agents · Agent Profiles + 历史
@@ -204,7 +204,7 @@
 
 | 区 | 风格 | 关键元素 |
 |---|---|---|
-| **/**（首页） | **Editorial Mono** | 深色 `#0c0c0c`；大标语 64px；橙红 `#ff5e3a` 单色点缀；等宽小字标签 |
+| **/**（首页） | **Protocol Glass** | 深色流体协议背景；紧凑 pill 导航；居中 proof narrative；mint/cyan CTA；轻量 live metrics tape |
 | **/arena**, **/agents**, **/my** | **Glass Neon** | 玻璃拟态（`backdrop-filter: blur(20px)`）；紫青双色（`#7c5cff` + `#00d1ff`）；radial 渐变光晕 |
 | **/admin** | **极简灰阶** | 深灰背景；无渐变；表格密度优先 |
 | 通用 token | 字体 `-apple-system, system-ui`；行高 1.6-1.75；圆角 12-16px | |
@@ -307,9 +307,9 @@ export interface WalletBindingsFacade {
 | `arena-dashboard.tsx` | **重写**（见 §4.2.1） | 改为 Showdown 主战场 |
 | `LeaderboardTable.tsx` | **保留**，迁移到 `/agents` | |
 | `MetricsStrip.tsx` | **保留**，新增首页 data strip 变体 | |
-| `PageShell.tsx` | **保留**，新增首页变体（Editorial） | |
+| `PageShell.tsx` | **保留**，首页改走 Protocol Glass 公共入口 | |
 | `ShowdownCard.tsx` | **新增** | Hook 01 的视觉主体 |
-| `HomeHero.tsx` | **新增** | 首页第一屏 Editorial 大标语 |
+| `HomeHero.tsx` | **新增** | 首页第一屏 Protocol Glass 大标语 |
 | `HomeDataStrip.tsx` | **新增** | 首页 4 列实时数据条 |
 | `AgentProfileCard.tsx` | **新增** | `/agents` 列表卡片 |
 | `MyDashboard.tsx` | **新增** | `/my` 页根容器 |
