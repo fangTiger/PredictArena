@@ -382,7 +382,7 @@ export interface WalletBindingsFacade {
 
 - 所有 `add-wallet-funded-follows` 已实现端点不动
 - `/api/commit-signal` 保持禁用
-- `/api/run-agents`、`/api/markets`、`/api/leaderboard` 等读模型 API 不动
+- `/api/run-agents`、`/api/markets`、`/api/leaderboard` 等 API 契约不动；公开页面仍可浏览，但前端触发 `Run Agents` / `Run Agents + Follow` 前必须先取得钱包 identity
 
 ### 4.4 ShowdownArena 智能合约
 

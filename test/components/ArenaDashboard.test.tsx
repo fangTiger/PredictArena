@@ -129,6 +129,14 @@ function renderDashboard() {
   );
 }
 
+function mockConnectedWalletSession() {
+  walletMocks.readBrowserWalletSession.mockReturnValue({
+    walletAddress,
+    chainId: 5042002,
+    connectedAt: '2026-06-04T00:00:00.000Z'
+  });
+}
+
 describe('ArenaDashboard', () => {
   beforeEach(() => {
     showdownGridMocks.lastProps = null;
@@ -249,39 +257,44 @@ describe('ArenaDashboard', () => {
     vi.restoreAllMocks();
   });
 
-  it('checks wallet follow summary before any chain reads when follow starts from a disconnected wallet', async () => {
+  it('connects a wallet before running agents when the run action starts disconnected', async () => {
+    let resolveAddress: (address: typeof walletAddress) => void = () => undefined;
+    walletMocks.requestBrowserWalletAddress.mockReturnValue(
+      new Promise<typeof walletAddress>((resolve) => {
+        resolveAddress = resolve;
+      })
+    );
+
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: 'Run Agents' }));
 
-    await screen.findByText(
-      'Generated 1 signal. Automatic discovery found an eligible candidate, but that market already has a live showdown.'
-    );
-    const directFollowButton = await screen.findByRole('button', { name: 'Connect wallet' });
-    await waitFor(() => {
-      expect(directFollowButton).toBeEnabled();
-    });
-    fireEvent.click(directFollowButton);
-
     await waitFor(() => {
       expect(walletMocks.requestBrowserWalletAddress).toHaveBeenCalledWith(walletMocks.provider);
     });
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => url === '/api/run-agents')).toBe(false);
+
+    resolveAddress(walletAddress);
+
+    await screen.findByText(
+      'Generated 1 signal. Automatic discovery found an eligible candidate, but that market already has a live showdown.'
+    );
     await waitFor(() => {
       expect(vi.mocked(fetch).mock.calls.some(([url]) => url === `/api/wallet/${walletAddress}/summary`)).toBe(
         true
       );
     });
-    await waitFor(() => {
-      expect(screen.getByText('This wallet already follows the selected signal.')).toBeInTheDocument();
-    });
-
-    expect(walletMocks.readBrowserWalletChainId).not.toHaveBeenCalled();
+    expect(vi.mocked(fetch).mock.calls.some(([url]) => url === '/api/run-agents')).toBe(true);
+    expect(walletMocks.readBrowserWalletChainId).toHaveBeenCalled();
+    expect(walletMocks.writeBrowserWalletSession).toHaveBeenCalledWith(
+      expect.objectContaining({ walletAddress })
+    );
     expect(walletMocks.switchBrowserWalletToArc).not.toHaveBeenCalled();
-    expect(walletMocks.createBrowserWalletClients).not.toHaveBeenCalled();
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
   });
 
   it('revalidates showdowns and reports opened matches after Run Agents', async () => {
+    mockConnectedWalletSession();
     let showdownRequests = 0;
     const signal = createSignal();
     vi.stubGlobal(
@@ -353,6 +366,7 @@ describe('ArenaDashboard', () => {
   });
 
   it('promotes run output into a paginated signal browser with a read-only detail panel', async () => {
+    mockConnectedWalletSession();
     const signals = [
       createSignal({
         id: 'signal-browser-1',
@@ -492,6 +506,7 @@ describe('ArenaDashboard', () => {
   });
 
   it('keeps the opened success message when showdown revalidation fails after Run Agents', async () => {
+    mockConnectedWalletSession();
     let showdownRequests = 0;
     const signal = createSignal();
     vi.stubGlobal(
@@ -570,6 +585,7 @@ describe('ArenaDashboard', () => {
   });
 
   it('passes ui-only preview showdown candidates to ShowdownGrid when live showdowns are empty', async () => {
+    mockConnectedWalletSession();
     const yesSignal = createSignal({
       id: 'signal-preview-yes',
       marketId: 'market-preview-1',
@@ -672,6 +688,7 @@ describe('ArenaDashboard', () => {
   });
 
   it('passes near-miss preview candidates when the latest run has no opposing pair yet', async () => {
+    mockConnectedWalletSession();
     const avoidSignal = createSignal({
       id: 'signal-near-miss-avoid',
       marketId: 'market-near-miss-1',
@@ -776,6 +793,7 @@ describe('ArenaDashboard', () => {
   });
 
   it('does not pass preview candidates when discovery opened a real showdown and the list is still empty', async () => {
+    mockConnectedWalletSession();
     const yesSignal = createSignal({
       id: 'signal-opened-preview-yes',
       marketId: 'market-opened-preview-1',
@@ -858,7 +876,7 @@ describe('ArenaDashboard', () => {
     ).toBeInTheDocument();
   });
 
-  it('checks wallet follow summary before chain reads when run agents plus follow starts disconnected', async () => {
+  it('checks wallet follow summary before chain sync when run agents plus follow starts disconnected', async () => {
     renderDashboard();
 
     fireEvent.click(screen.getByRole('button', { name: 'Run Agents + Follow' }));
@@ -874,10 +892,41 @@ describe('ArenaDashboard', () => {
     await waitFor(() => {
       expect(screen.getByText('No wallet-fundable signal was generated in this run.')).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(walletMocks.writeBrowserWalletSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletAddress,
+          chainId: null
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(walletMocks.writeBrowserWalletSession).toHaveBeenCalledWith(
+        expect.objectContaining({
+          walletAddress,
+          chainId: 5042002
+        })
+      );
+    });
+    await waitFor(() => {
+      expect(walletMocks.readBrowserWalletChainId).toHaveBeenCalled();
+    });
 
-    expect(walletMocks.readBrowserWalletChainId).not.toHaveBeenCalled();
+    const fetchMock = vi.mocked(fetch);
+    const summaryCallIndex = fetchMock.mock.calls.findIndex(
+      ([url]) => url === `/api/wallet/${walletAddress}/summary`
+    );
+    expect(summaryCallIndex).toBeGreaterThanOrEqual(0);
+    expect(fetchMock.mock.invocationCallOrder[summaryCallIndex]).toBeLessThan(
+      walletMocks.readBrowserWalletChainId.mock.invocationCallOrder[0]
+    );
+    await waitFor(() => {
+      expect(walletMocks.createBrowserWalletClients).toHaveBeenCalledWith(walletMocks.provider, walletAddress);
+    });
+    expect(fetchMock.mock.invocationCallOrder[summaryCallIndex]).toBeLessThan(
+      walletMocks.createBrowserWalletClients.mock.invocationCallOrder[0]
+    );
     expect(walletMocks.switchBrowserWalletToArc).not.toHaveBeenCalled();
-    expect(walletMocks.createBrowserWalletClients).not.toHaveBeenCalled();
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
   });
 
@@ -1030,6 +1079,7 @@ describe('ArenaDashboard', () => {
 
   it('keeps the opened success message when mutate rejects during showdown revalidation', async () => {
     vi.resetModules();
+    mockConnectedWalletSession();
 
     const signal = createSignal();
     const rejectingMutate = vi.fn(async () => {

@@ -505,14 +505,14 @@ export function ArenaDashboard() {
   }, [refreshAutonomy]);
 
   useEffect(() => {
-    if (!walletAddress) {
+    if (!walletAddress || walletChainId === null) {
       return;
     }
 
     void refreshWalletReadiness(walletAddress).catch((error) => {
       setWalletMessage(error instanceof Error ? error.message : 'Wallet status unavailable.');
     });
-  }, [walletAddress, refreshWalletReadiness]);
+  }, [walletAddress, walletChainId, refreshWalletReadiness]);
 
   useEffect(() => {
     if (!walletAddress) {
@@ -528,7 +528,11 @@ export function ArenaDashboard() {
     setSelectedSignalId(null);
   }, [signals]);
 
-  async function connectWallet() {
+  async function ensureWalletConnected() {
+    if (walletAddress) {
+      return { address: walletAddress, connectedNow: false as const };
+    }
+
     setWalletActionState('connecting');
     try {
       const provider = getBrowserWalletProvider();
@@ -537,24 +541,9 @@ export function ArenaDashboard() {
         throw new Error('Browser wallet plugin unavailable.');
       }
 
-      const address = await requestBrowserWalletAddress(provider);
-      const chainId = await readBrowserWalletChainId(provider);
-      if (!address) {
-        throw new Error('No wallet account selected.');
-      }
-
-      setWalletAddress(address);
-      setWalletChainId(chainId);
-      writeBrowserWalletSession({
-        walletAddress: address,
-        chainId,
-        connectedAt: new Date().toISOString()
-      });
-      await Promise.all([
-        refreshWalletReadiness(address),
-        refreshWalletFollowSummary(address, { failSoft: true })
-      ]);
-      return address;
+      const address = await requestWalletAddressOnly(provider);
+      publishWalletSession(address, null);
+      return { address, connectedNow: true as const };
     } finally {
       setWalletActionState('idle');
     }
@@ -571,7 +560,28 @@ export function ArenaDashboard() {
     return address;
   }
 
-  async function runAgents() {
+  function publishWalletSession(address: `0x${string}`, chainId: number | null) {
+    setWalletAddress(address);
+    setWalletChainId(chainId);
+    writeBrowserWalletSession({
+      walletAddress: address,
+      chainId,
+      connectedAt: new Date().toISOString()
+    });
+  }
+
+  async function syncConnectedWallet(address: `0x${string}`) {
+    const provider = getBrowserWalletProvider();
+    setHasWalletProvider(Boolean(provider));
+    if (!provider) {
+      throw new Error('Browser wallet plugin unavailable.');
+    }
+
+    const chainId = await readBrowserWalletChainId(provider);
+    publishWalletSession(address, chainId);
+  }
+
+  async function executeAgentRun() {
     const response = await fetch('/api/run-agents', {
       method: 'POST',
       headers: {
@@ -597,23 +607,25 @@ export function ArenaDashboard() {
     return payload;
   }
 
-  async function runAgentsAndFollowSignal() {
-    const payload = await runAgents();
-    let address = walletAddress;
-    if (!address) {
-      const provider = getBrowserWalletProvider();
-      setHasWalletProvider(Boolean(provider));
-      if (!provider) {
-        throw new Error('Browser wallet plugin unavailable.');
-      }
-
-      address = await requestWalletAddressOnly(provider);
+  async function runAgents() {
+    const { address, connectedNow } = await ensureWalletConnected();
+    const payload = await executeAgentRun();
+    if (connectedNow || walletChainId === null) {
+      await syncConnectedWallet(address);
     }
+    return payload;
+  }
 
+  async function runAgentsAndFollowSignal() {
+    const { address, connectedNow } = await ensureWalletConnected();
+    const payload = await executeAgentRun();
     const follows = await refreshWalletFollowSummary(address);
     const signal = selectWalletFundableSignal(payload.signals ?? [], follows, address);
     if (!signal) {
       setWalletMessage('No wallet-fundable signal was generated in this run.');
+      if (connectedNow || walletChainId === null) {
+        await syncConnectedWallet(address);
+      }
       return;
     }
 

@@ -13,6 +13,7 @@ The `/` route SHALL render an Arena Signal Glass landing page composed of `TopNa
 - **AND** the tagline "LIVE ON ARC TESTNET" SHALL appear above the H1
 - **AND** if the latest Arc block number is available, it SHALL be appended as "· BLOCK X" with thousands separators
 - **AND** the first viewport SHALL avoid an enclosed black editorial frame or centered visual box; the hero SHALL render as a full-bleed scene spanning the viewport width on the same dark glass-neon background system used by `/arena`
+- **AND** the page SHALL reuse the shared Glass `TopNav` treatment used by `/arena`, `/agents`, and `/my`, without homepage-specific navigation geometry, colors, or active-state overrides
 - **AND** the first viewport SHALL NOT visually mimic a single external reference site; specifically it SHALL NOT use a white pill navigation bar or a green-dominant fluid background as the primary identity
 - **AND** the first viewport SHALL include a perceptible CSS-driven signal/market motion layer, including a visible scanline or pulsing signal nodes, that reinforces agent activity without blocking content or requiring JavaScript
 - **AND** the hero SHALL expose clear `Enter Arena` and `View Agents` calls to action without requiring wallet connection
@@ -61,6 +62,13 @@ The `/arena` route SHALL render a Glass Neon themed layout consisting of `TopNav
 - **THEN** the Arena dashboard SHALL save the generated signals in memory
 - **AND** revalidate `/api/showdowns?status=all&limit=50`
 - **AND** display whether automatic Showdown discovery opened matches, skipped all candidates, or is waiting on safe configuration/budget/gas prerequisites
+
+#### Scenario: Run Agents requires wallet identity before execution
+
+- **WHEN** a visitor clicks `Run Agents` without a connected wallet
+- **THEN** the Arena SHALL request wallet connection before calling `POST /api/run-agents`
+- **AND** it SHALL NOT call `POST /api/run-agents` until a wallet address is available
+- **AND** read-only Arena surfaces, Showdown inspection, and `/agents` browsing SHALL remain visible without wallet connection
 
 #### Scenario: Run output is inspectable
 

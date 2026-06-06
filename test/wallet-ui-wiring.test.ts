@@ -28,7 +28,7 @@ describe('wallet-funded follow UI wiring', () => {
     expect(rootPage).not.toContain("redirect('/arena')");
     expect(rootPage).not.toContain('Showcase landing placeholder');
     expect(globalsCss).toContain('.home-protocol-main');
-    expect(globalsCss).toContain('.home-protocol-shell .topnav');
+    expect(globalsCss).not.toContain('.home-protocol-shell .topnav');
     expect(globalsCss).toContain(".home-hero[data-home-layout='full-bleed']");
     expect(globalsCss).toContain('width: 100vw');
     expect(globalsCss).toContain('margin-left: calc(50% - 50vw)');

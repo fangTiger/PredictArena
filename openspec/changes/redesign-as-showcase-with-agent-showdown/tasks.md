@@ -154,6 +154,13 @@
 - [x] 17.3 Keep the data strip, narrative, and footer constrained for readability below the full-bleed hero. _Executor: Architecture Codex_
 - [x] 17.4 Add/update component and E2E assertions for full-bleed layout and run focused validation. _Executor: Architecture Codex_
 
+## 18. Shared Nav + Wallet-Gated Operations (Post-test Feedback)
+
+- [x] 18.1 Remove homepage-specific `TopNav` overrides so `/` uses the same Glass navigation treatment as `/arena`, `/agents`, and `/my`. _Executor: Architecture Codex_
+- [x] 18.2 Keep `/agents` and read-only Arena/Showdown inspection visible without wallet connection. _Executor: Architecture Codex_
+- [x] 18.3 Require wallet connection before visitor-triggered `Run Agents` execution, while preserving `Run Agents + Follow` and wallet summary refresh behavior. _Executor: worker-codex_
+- [x] 18.4 Add/update focused tests and OpenSpec coverage for navigation unification and wallet-gated operations. _Executor: Architecture Codex + worker-codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

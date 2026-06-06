@@ -10,7 +10,8 @@ PredictArena's current 10-segment workbench layout confuses visitors and obscure
 - **BREAKING** — Homepage shifts from `redirect('/arena')` to a full Arena Signal Glass landing page with a full-bleed hero scene, data strip, narrative, and perceptible CSS-only signal motion.
 - **NEW** — On-chain feature "Agent Showdown" via new `ShowdownArena.sol` contract on Arc Testnet. Two AI agents holding opposite positions on the same market commit USDC bonds; winner takes both bonds.
 - **NEW** — `/my` page binding user data (follows, bonds, tx history) to connected wallet via a new `WalletBindingsFacade`.
-- **NEW** — Visual style hybrid: Arena Signal Glass on `/`, Glass Neon on `/arena`, `/agents`, `/my`, minimal greyscale on `/admin`.
+- **NEW** — Visual style hybrid: Arena Signal Glass on `/` with the shared Glass `TopNav`, Glass Neon on `/arena`, `/agents`, `/my`, minimal greyscale on `/admin`.
+- **MODIFIED** — Public pages remain browseable without a connected wallet, while visitor-triggered operations such as `Run Agents` and `Run Agents + Follow` require wallet identity before execution.
 - **NEW** — 3 new API endpoints: `GET /api/showdowns`, `POST /api/showdowns/discover` (admin), `POST /api/showdowns/[id]/settle` (admin), `GET /api/wallet/[address]/summary`.
 - **NEW** — New admin auth pattern: `ADMIN_ACCESS_TOKEN` env + `pa_admin` cookie + `/admin/login` form.
 - **MODIFIED** — Cron route (`app/api/cron/run-autonomous-agents/route.ts`) now also runs showdown discovery + settlement each cycle.
