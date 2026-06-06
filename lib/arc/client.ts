@@ -51,3 +51,10 @@ export function createArcClients({
     })
   };
 }
+
+export function createArcPublicClient({ rpcUrl }: { rpcUrl: string }) {
+  return createPublicClient({
+    chain: arcTestnet,
+    transport: http(rpcUrl)
+  });
+}

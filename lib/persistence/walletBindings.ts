@@ -1,4 +1,7 @@
+import { createArcPublicClient } from '@/lib/arc/client';
 import { buildArcTxUrl } from '@/lib/arc/explorer';
+import { readUsdcAllowance, readUsdcBalance } from '@/lib/arc/usdc';
+import { getServerEnv } from '@/lib/config/env';
 import { getRuntimeStore, type PersistenceStore } from '@/lib/persistence/store';
 import type { AgentSignal } from '@/lib/polymarket/types';
 
@@ -60,6 +63,46 @@ interface WalletBindingsFacadeOptions
 
 const DEFAULT_LIMIT = 50;
 
+function createDefaultArcPublicClient() {
+  const env = getServerEnv();
+
+  return {
+    env,
+    publicClient: createArcPublicClient({ rpcUrl: env.arc.rpcUrl })
+  };
+}
+
+async function readDefaultUsdcBalanceMicro(walletAddress: string): Promise<bigint> {
+  const { env, publicClient } = createDefaultArcPublicClient();
+
+  return readUsdcBalance({
+    publicClient,
+    ownerAddress: walletAddress as `0x${string}`,
+    usdcAddress: env.arc.usdcAddress
+  });
+}
+
+async function readDefaultUsdcAllowanceMicro(walletAddress: string): Promise<bigint> {
+  const { env, publicClient } = createDefaultArcPublicClient();
+  if (!env.arc.signalBondArenaAddress) {
+    return 0n;
+  }
+
+  return readUsdcAllowance({
+    publicClient,
+    ownerAddress: walletAddress as `0x${string}`,
+    spender: env.arc.signalBondArenaAddress,
+    usdcAddress: env.arc.usdcAddress
+  });
+}
+
+async function checkDefaultArcChainSynced(): Promise<boolean> {
+  const { env, publicClient } = createDefaultArcPublicClient();
+  const chainId = await publicClient.getChainId();
+
+  return chainId === env.arc.chainId;
+}
+
 function defaultDeps(
   overrides: WalletBindingsFacadeOptions
 ): Omit<WalletBindingsDeps, 'store'> & {
@@ -69,9 +112,9 @@ function defaultDeps(
 
   return {
     getStore: () => store ?? getRuntimeStore(),
-    readUsdcBalanceMicro: async () => 0n,
-    readUsdcAllowanceMicro: async () => 0n,
-    checkArcChainSynced: async () => true,
+    readUsdcBalanceMicro: readDefaultUsdcBalanceMicro,
+    readUsdcAllowanceMicro: readDefaultUsdcAllowanceMicro,
+    checkArcChainSynced: checkDefaultArcChainSynced,
     buildExplorerUrl: buildArcTxUrl,
     ...rest
   };
@@ -84,6 +127,10 @@ function normalizeWalletAddress(walletAddress: string): string {
 function deriveFollowStatus(
   signal: AgentSignal | undefined
 ): WalletFollow['status'] {
+  if (!signal) {
+    return 'pending';
+  }
+
   if (signal?.resolution) {
     return signal.resolution.outcomeCorrect ? 'resolved-win' : 'resolved-loss';
   }

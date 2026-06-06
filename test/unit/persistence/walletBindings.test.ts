@@ -219,7 +219,7 @@ describe('WalletBindingsFacade', () => {
         marketId: 'missing-signal',
         marketQuestion: '(market unavailable)',
         side: 'YES',
-        status: 'confirmed',
+        status: 'pending',
         payoutMicroUsdc: null
       }),
       expect.objectContaining({
