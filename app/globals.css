@@ -4485,7 +4485,7 @@ code {
   position: relative;
   display: grid;
   gap: 18px;
-  width: min(1180px, calc(100vw - 48px));
+  width: 100%;
   margin: 0 auto;
   padding: clamp(1.8rem, 4vw, 3rem) 0 76px;
 }
@@ -4840,6 +4840,18 @@ code {
   text-align: center;
 }
 
+.home-hero[data-home-layout='full-bleed'] {
+  width: 100vw;
+  min-height: clamp(560px, calc(100svh - 108px), 760px);
+  margin-left: calc(50% - 50vw);
+  margin-right: calc(50% - 50vw);
+  align-content: center;
+  padding:
+    clamp(3.2rem, 8vh, 5.7rem)
+    max(24px, 6vw)
+    clamp(2.6rem, 7vh, 4.8rem);
+}
+
 .home-protocol-shell .home-hero.glass-card {
   border: 0;
   background: transparent;
@@ -4850,19 +4862,17 @@ code {
 
 .home-signal-lattice {
   position: absolute;
-  inset: clamp(0.4rem, 2vw, 1.5rem) 0 auto;
+  inset: 0;
   z-index: 0;
-  height: min(430px, 70vh);
+  height: 100%;
   pointer-events: none;
   background:
-    linear-gradient(100deg, transparent 0 42%, rgba(var(--glass-tint-cyan), 0.22) 48%, transparent 56%),
-    repeating-linear-gradient(90deg, rgba(var(--glass-tint-cyan), 0.12) 0 1px, transparent 1px 72px),
-    repeating-linear-gradient(0deg, rgba(var(--glass-tint-purple), 0.11) 0 1px, transparent 1px 54px),
+    linear-gradient(100deg, transparent 0 34%, rgba(var(--glass-tint-cyan), 0.18) 46%, transparent 62%),
+    repeating-linear-gradient(90deg, rgba(var(--glass-tint-cyan), 0.1) 0 1px, transparent 1px 88px),
+    repeating-linear-gradient(0deg, rgba(var(--glass-tint-purple), 0.1) 0 1px, transparent 1px 62px),
     linear-gradient(135deg, rgba(var(--glass-tint-purple), 0.08), rgba(var(--glass-tint-coral), 0.06));
-  border: 1px solid rgba(var(--glass-tint-cyan), 0.08);
-  border-radius: var(--glass-card-radius);
-  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.72), transparent 72%);
-  opacity: 0.72;
+  mask-image: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.9), transparent 82%);
+  opacity: 0.78;
   animation: homeSignalSweep 12s linear infinite;
 }
 
@@ -5106,6 +5116,14 @@ code {
   overflow: hidden;
 }
 
+.home-data-strip,
+.home-narrative,
+.home-transition-footer {
+  width: min(1180px, calc(100vw - 48px));
+  margin-right: auto;
+  margin-left: auto;
+}
+
 .home-protocol-shell .home-data-strip.glass-card,
 .home-protocol-shell .home-narrative-column.glass-card,
 .home-protocol-shell .home-transition-footer.glass-card {
@@ -5286,8 +5304,14 @@ code {
   }
 
   .home-protocol-main {
-    width: min(100vw - 28px, 1180px);
+    width: 100%;
     padding-top: 34px;
+  }
+
+  .home-data-strip,
+  .home-narrative,
+  .home-transition-footer {
+    width: min(100vw - 28px, 1180px);
   }
 
   .home-data-strip {
@@ -5340,9 +5364,12 @@ code {
   }
 
   .home-hero {
-    min-height: auto;
     gap: 18px;
-    padding: 34px 4px 24px;
+    padding: 38px 18px 30px;
+  }
+
+  .home-hero[data-home-layout='full-bleed'] {
+    min-height: min(720px, calc(100svh - 132px));
   }
 
   .home-signal-sweep[data-home-motion='signal-sweep'] {

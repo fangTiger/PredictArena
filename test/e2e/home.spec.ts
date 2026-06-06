@@ -13,6 +13,14 @@ test('home arena signal glass flow exposes primary actions without the editorial
   ).toBeVisible();
   await expect(page.getByText('ACTIVE SIGNALS')).toBeVisible();
   await expect(page.locator('[data-page-surface="arena-signal-glass"]')).toBeVisible();
+  await expect(page.locator('[data-home-layout="full-bleed"]')).toBeVisible();
+  await expect.poll(async () => {
+      return page.locator('[data-home-layout="full-bleed"]').evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return Math.round(rect.width - window.innerWidth);
+      });
+    })
+    .toBe(0);
   await expect(page.locator('[data-home-motion="signal-lattice"]')).toBeVisible();
   await expect(page.locator('[data-home-motion="signal-sweep"]')).toBeVisible();
   await expect(page.locator('[data-home-motion="signal-beacon"]')).toHaveCount(3);

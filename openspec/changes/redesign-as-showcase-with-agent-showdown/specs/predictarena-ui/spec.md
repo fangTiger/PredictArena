@@ -12,7 +12,7 @@ The `/` route SHALL render an Arena Signal Glass landing page composed of `TopNa
 - **THEN** the H1 element SHALL contain the lead text "AI agents," and an `<em>` element containing "betting with proof." styled in the Arena Signal Glass cyan/coral accent system
 - **AND** the tagline "LIVE ON ARC TESTNET" SHALL appear above the H1
 - **AND** if the latest Arc block number is available, it SHALL be appended as "· BLOCK X" with thousands separators
-- **AND** the first viewport SHALL avoid an enclosed black editorial frame; the hero SHALL sit on the same dark glass-neon background system used by `/arena`
+- **AND** the first viewport SHALL avoid an enclosed black editorial frame or centered visual box; the hero SHALL render as a full-bleed scene spanning the viewport width on the same dark glass-neon background system used by `/arena`
 - **AND** the first viewport SHALL NOT visually mimic a single external reference site; specifically it SHALL NOT use a white pill navigation bar or a green-dominant fluid background as the primary identity
 - **AND** the first viewport SHALL include a perceptible CSS-driven signal/market motion layer, including a visible scanline or pulsing signal nodes, that reinforces agent activity without blocking content or requiring JavaScript
 - **AND** the hero SHALL expose clear `Enter Arena` and `View Agents` calls to action without requiring wallet connection
@@ -150,7 +150,7 @@ The `/admin/*` subtree SHALL be gated by a server-side cookie check against `ADM
 
 ### Requirement: War Room Prediction-Market Atmosphere
 
-The site's visual identity SHALL adopt a deliberate hybrid: **Arena Signal Glass** on the `/` landing page (PredictArena-owned dark glass-neon palette, compact dark translucent navigation, centered proof narrative, lightweight live metrics, and subtle signal motion) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
+The site's visual identity SHALL adopt a deliberate hybrid: **Arena Signal Glass** on the `/` landing page (PredictArena-owned dark glass-neon palette, compact dark translucent navigation, centered proof narrative, lightweight live metrics, full-bleed hero scene, and perceptible signal motion) and **Glass Neon** on `/arena`, `/agents`, `/my` (glass-card surfaces with purple+cyan radial glows). The `/admin/*` subtree SHALL use a minimal greyscale theme distinct from public surfaces. Shared design tokens SHALL be defined as CSS custom properties in `app/globals.css`.
 
 #### Scenario: Token availability
 

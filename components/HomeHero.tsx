@@ -20,6 +20,7 @@ export function HomeHero({ blockNumber }: HomeHeroProps) {
       data-component="home-hero"
       data-surface="arena-signal-glass"
       data-home-visual="arena-signal-glass"
+      data-home-layout="full-bleed"
     >
       <span className="home-signal-lattice" data-home-motion="signal-lattice" aria-hidden="true" />
       <span className="home-signal-sweep" data-home-motion="signal-sweep" aria-hidden="true" />

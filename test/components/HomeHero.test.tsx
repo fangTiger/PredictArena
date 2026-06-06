@@ -26,6 +26,7 @@ describe('HomeHero', () => {
     const { container } = render(<HomeHero blockNumber={8_412_390} />);
 
     expect(container.querySelector('[data-surface="arena-signal-glass"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-home-layout="full-bleed"]')).toBeInTheDocument();
     expect(container.querySelector('[data-home-motion="signal-lattice"]')).toBeInTheDocument();
     expect(container.querySelector('[data-home-motion="signal-sweep"]')).toBeInTheDocument();
     expect(container.querySelectorAll('[data-home-motion="signal-beacon"]')).toHaveLength(3);

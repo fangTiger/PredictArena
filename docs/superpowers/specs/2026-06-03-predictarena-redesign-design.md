@@ -204,7 +204,7 @@
 
 | 区 | 风格 | 关键元素 |
 |---|---|---|
-| **/**（首页） | **Arena Signal Glass** | 与 Arena 同源的深色 glass-neon 背景；暗色 glass 导航；居中 proof narrative；cyan/coral/mint CTA；轻量 live metrics tape；可感知 CSS-only signal motion |
+| **/**（首页） | **Arena Signal Glass** | 与 Arena 同源的深色 glass-neon 背景；暗色 glass 导航；全屏 full-bleed hero 场景；居中 proof narrative；cyan/coral/mint CTA；轻量 live metrics tape；可感知 CSS-only signal motion |
 | **/arena**, **/agents**, **/my** | **Glass Neon** | 玻璃拟态（`backdrop-filter: blur(20px)`）；紫青双色（`#7c5cff` + `#00d1ff`）；radial 渐变光晕 |
 | **/admin** | **极简灰阶** | 深灰背景；无渐变；表格密度优先 |
 | 通用 token | 字体 `-apple-system, system-ui`；行高 1.6-1.75；圆角 12-16px | |
@@ -309,7 +309,7 @@ export interface WalletBindingsFacade {
 | `MetricsStrip.tsx` | **保留**，新增首页 data strip 变体 | |
 | `PageShell.tsx` | **保留**，首页改走 Arena Signal Glass 公共入口 | |
 | `ShowdownCard.tsx` | **新增** | Hook 01 的视觉主体 |
-| `HomeHero.tsx` | **新增** | 首页第一屏 Arena Signal Glass 大标语与动态信号层 |
+| `HomeHero.tsx` | **新增** | 首页第一屏 full-bleed Arena Signal Glass 大标语与动态信号层 |
 | `HomeDataStrip.tsx` | **新增** | 首页 4 列实时数据条 |
 | `AgentProfileCard.tsx` | **新增** | `/agents` 列表卡片 |
 | `MyDashboard.tsx` | **新增** | `/my` 页根容器 |

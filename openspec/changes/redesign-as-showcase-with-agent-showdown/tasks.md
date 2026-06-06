@@ -147,6 +147,13 @@
 - [x] 16.3 Add/update focused tests and E2E selectors so the perceptible motion layer remains wired. _Executor: Architecture Codex_
 - [x] 16.4 Run focused tests, browser computed-style verification, OpenSpec validation, and final build/lint checks. _Executor: Architecture Codex + review-codex_
 
+## 17. Home Full-Bleed First Viewport (Post-test Feedback)
+
+- [x] 17.1 Remove the centered first-viewport visual box/frame from the homepage hero. _Executor: Architecture Codex_
+- [x] 17.2 Make the hero and signal motion layer full-bleed across the viewport while keeping content centered and readable. _Executor: Architecture Codex_
+- [x] 17.3 Keep the data strip, narrative, and footer constrained for readability below the full-bleed hero. _Executor: Architecture Codex_
+- [x] 17.4 Add/update component and E2E assertions for full-bleed layout and run focused validation. _Executor: Architecture Codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit

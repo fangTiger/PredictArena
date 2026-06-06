@@ -29,12 +29,16 @@ describe('wallet-funded follow UI wiring', () => {
     expect(rootPage).not.toContain('Showcase landing placeholder');
     expect(globalsCss).toContain('.home-protocol-main');
     expect(globalsCss).toContain('.home-protocol-shell .topnav');
+    expect(globalsCss).toContain(".home-hero[data-home-layout='full-bleed']");
+    expect(globalsCss).toContain('width: 100vw');
+    expect(globalsCss).toContain('margin-left: calc(50% - 50vw)');
     expect(globalsCss).toContain('@keyframes homeSignalSweep');
     expect(globalsCss).toContain('@keyframes homeSignalPulse');
     expect(globalsCss).toContain('@keyframes homeSignalScan');
     expect(globalsCss).toContain('@keyframes homeSignalBeacon');
     expect(globalsCss).toContain('[data-home-motion=\'signal-sweep\']');
     expect(globalsCss).toContain('[data-home-motion=\'signal-beacon\']');
+    expect(globalsCss).not.toContain('border: 1px solid rgba(var(--glass-tint-cyan), 0.08);');
     expect(globalsCss).not.toContain('rgba(245, 255, 251, 0.88)');
     expect(globalsCss).not.toContain('linear-gradient(145deg, #01130f 0%, #061c21 42%, #080712 100%)');
     expect(arenaPage).toContain('return <ArenaDashboard />');

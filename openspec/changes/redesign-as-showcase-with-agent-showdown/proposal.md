@@ -7,7 +7,7 @@ PredictArena's current 10-segment workbench layout confuses visitors and obscure
 ## What Changes
 
 - **BREAKING** — Information architecture collapses from 10 public segments to 4 (Home, Arena, Agents, My) + 1 hidden `/admin` subtree. Removes `/intelligence`, `/autonomy`, `/leaderboard`, `/signals`, `/demo-resolution`, `/proof`. Operator surfaces move under `/admin/*`.
-- **BREAKING** — Homepage shifts from `redirect('/arena')` to a full Arena Signal Glass landing page with hero, data strip, narrative, and perceptible CSS-only signal motion.
+- **BREAKING** — Homepage shifts from `redirect('/arena')` to a full Arena Signal Glass landing page with a full-bleed hero scene, data strip, narrative, and perceptible CSS-only signal motion.
 - **NEW** — On-chain feature "Agent Showdown" via new `ShowdownArena.sol` contract on Arc Testnet. Two AI agents holding opposite positions on the same market commit USDC bonds; winner takes both bonds.
 - **NEW** — `/my` page binding user data (follows, bonds, tx history) to connected wallet via a new `WalletBindingsFacade`.
 - **NEW** — Visual style hybrid: Arena Signal Glass on `/`, Glass Neon on `/arena`, `/agents`, `/my`, minimal greyscale on `/admin`.
