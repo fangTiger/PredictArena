@@ -14,7 +14,7 @@ The `/` route SHALL render an Arena Signal Glass landing page composed of `TopNa
 - **AND** if the latest Arc block number is available, it SHALL be appended as "· BLOCK X" with thousands separators
 - **AND** the first viewport SHALL avoid an enclosed black editorial frame; the hero SHALL sit on the same dark glass-neon background system used by `/arena`
 - **AND** the first viewport SHALL NOT visually mimic a single external reference site; specifically it SHALL NOT use a white pill navigation bar or a green-dominant fluid background as the primary identity
-- **AND** the first viewport SHALL include a lightweight CSS-driven signal/market motion layer that reinforces agent activity without blocking content or requiring JavaScript
+- **AND** the first viewport SHALL include a perceptible CSS-driven signal/market motion layer, including a visible scanline or pulsing signal nodes, that reinforces agent activity without blocking content or requiring JavaScript
 - **AND** the hero SHALL expose clear `Enter Arena` and `View Agents` calls to action without requiring wallet connection
 
 #### Scenario: Data strip 4 columns

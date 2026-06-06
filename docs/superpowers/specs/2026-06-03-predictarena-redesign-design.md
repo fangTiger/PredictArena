@@ -204,7 +204,7 @@
 
 | 区 | 风格 | 关键元素 |
 |---|---|---|
-| **/**（首页） | **Arena Signal Glass** | 与 Arena 同源的深色 glass-neon 背景；暗色 glass 导航；居中 proof narrative；cyan/coral/mint CTA；轻量 live metrics tape；CSS-only signal motion |
+| **/**（首页） | **Arena Signal Glass** | 与 Arena 同源的深色 glass-neon 背景；暗色 glass 导航；居中 proof narrative；cyan/coral/mint CTA；轻量 live metrics tape；可感知 CSS-only signal motion |
 | **/arena**, **/agents**, **/my** | **Glass Neon** | 玻璃拟态（`backdrop-filter: blur(20px)`）；紫青双色（`#7c5cff` + `#00d1ff`）；radial 渐变光晕 |
 | **/admin** | **极简灰阶** | 深灰背景；无渐变；表格密度优先 |
 | 通用 token | 字体 `-apple-system, system-ui`；行高 1.6-1.75；圆角 12-16px | |
@@ -546,7 +546,7 @@ for each marketId in 当前有活跃 signal 的市场:
     if (agentX, agentY) 已有未结算 showdown for this marketId: skip
     if 任一 agent 的剩余预算 < bondPerSide: skip-budget
     pairs.append((agentX, agentY))
-  
+
   if pairs.length == 0: skip-no-pair
   // 同一市场最多 1 个 showdown（N>2 agents 时只取置信度差最大的对）
   // 排序键：|probabilityA - probabilityB| 降序

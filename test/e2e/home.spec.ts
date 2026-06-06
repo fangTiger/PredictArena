@@ -14,6 +14,8 @@ test('home arena signal glass flow exposes primary actions without the editorial
   await expect(page.getByText('ACTIVE SIGNALS')).toBeVisible();
   await expect(page.locator('[data-page-surface="arena-signal-glass"]')).toBeVisible();
   await expect(page.locator('[data-home-motion="signal-lattice"]')).toBeVisible();
+  await expect(page.locator('[data-home-motion="signal-sweep"]')).toBeVisible();
+  await expect(page.locator('[data-home-motion="signal-beacon"]')).toHaveCount(3);
   const heroActions = page.getByLabel('Home hero actions');
   await expect(heroActions.getByRole('link', { name: 'Enter Arena' })).toBeVisible();
   await expect(heroActions.getByRole('link', { name: 'View Agents' })).toBeVisible();

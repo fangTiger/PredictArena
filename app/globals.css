@@ -4886,6 +4886,94 @@ code {
   animation: homeSignalPulse 5.5s ease-in-out infinite;
 }
 
+.home-signal-sweep[data-home-motion='signal-sweep'],
+.home-signal-beacon[data-home-motion='signal-beacon'] {
+  position: absolute;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.home-signal-sweep[data-home-motion='signal-sweep'] {
+  left: -18%;
+  right: -18%;
+  top: clamp(8.2rem, 23vw, 14.8rem);
+  height: 3px;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(var(--glass-tint-cyan), 0.12) 19%,
+      rgba(var(--glass-tint-mint), 0.92) 45%,
+      rgba(var(--glass-tint-coral), 0.72) 53%,
+      rgba(var(--glass-tint-cyan), 0.18) 68%,
+      transparent 86%
+    );
+  border-radius: 999px;
+  filter:
+    drop-shadow(0 0 10px rgba(var(--glass-tint-cyan), 0.54))
+    drop-shadow(0 0 22px rgba(var(--glass-tint-coral), 0.24));
+  opacity: 0.95;
+  transform: translate3d(-32%, 0, 0) rotate(-5deg);
+  animation: homeSignalScan 4.8s cubic-bezier(0.62, 0, 0.16, 1) infinite;
+}
+
+.home-signal-sweep[data-home-motion='signal-sweep']::before {
+  position: absolute;
+  inset: -42px 18%;
+  content: '';
+  background: linear-gradient(90deg, transparent, rgba(var(--glass-tint-cyan), 0.24), transparent);
+  filter: blur(18px);
+  opacity: 0.78;
+}
+
+.home-signal-beacon[data-home-motion='signal-beacon'] {
+  width: 10px;
+  height: 10px;
+  border: 1px solid rgba(var(--glass-tint-mint), 0.75);
+  border-radius: 999px;
+  background: rgba(var(--glass-tint-cyan), 0.94);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.22),
+    0 0 20px rgba(var(--glass-tint-cyan), 0.72),
+    0 0 42px rgba(var(--glass-tint-coral), 0.22);
+  animation: homeSignalBeacon 3.2s ease-in-out infinite;
+}
+
+.home-signal-beacon[data-home-motion='signal-beacon']::before {
+  position: absolute;
+  inset: -14px;
+  content: '';
+  border: 1px solid rgba(var(--glass-tint-cyan), 0.38);
+  border-radius: inherit;
+  opacity: 0.7;
+  animation: homeSignalBeacon 3.2s ease-in-out infinite reverse;
+}
+
+.home-signal-beacon-btc {
+  top: 25%;
+  left: 18%;
+}
+
+.home-signal-beacon-eth {
+  top: 38%;
+  right: 21%;
+  animation-delay: 0.55s;
+}
+
+.home-signal-beacon-eth::before {
+  animation-delay: 0.55s;
+}
+
+.home-signal-beacon-sol {
+  right: 34%;
+  bottom: 28%;
+  animation-delay: 1.1s;
+}
+
+.home-signal-beacon-sol::before {
+  animation-delay: 1.1s;
+}
+
 .home-hero-mark {
   position: relative;
   width: 92px;
@@ -5138,9 +5226,42 @@ code {
   }
 }
 
+@keyframes homeSignalScan {
+  0% {
+    opacity: 0;
+    transform: translate3d(-36%, 0, 0) rotate(-5deg);
+  }
+  12% {
+    opacity: 0.98;
+  }
+  72% {
+    opacity: 0.98;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(36%, 0, 0) rotate(-5deg);
+  }
+}
+
+@keyframes homeSignalBeacon {
+  0%,
+  100% {
+    opacity: 0.42;
+    transform: scale(0.72);
+  }
+  46% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .home-signal-lattice,
   .home-signal-lattice::after,
+  .home-signal-sweep,
+  .home-signal-sweep::before,
+  .home-signal-beacon,
+  .home-signal-beacon::before,
   .home-hero-mark {
     animation: none;
   }
@@ -5222,6 +5343,23 @@ code {
     min-height: auto;
     gap: 18px;
     padding: 34px 4px 24px;
+  }
+
+  .home-signal-sweep[data-home-motion='signal-sweep'] {
+    top: 42%;
+  }
+
+  .home-signal-beacon-btc {
+    left: 13%;
+  }
+
+  .home-signal-beacon-eth {
+    right: 12%;
+  }
+
+  .home-signal-beacon-sol {
+    right: 22%;
+    bottom: 20%;
   }
 
   .home-hero-heading {

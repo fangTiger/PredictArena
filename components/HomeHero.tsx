@@ -22,6 +22,22 @@ export function HomeHero({ blockNumber }: HomeHeroProps) {
       data-home-visual="arena-signal-glass"
     >
       <span className="home-signal-lattice" data-home-motion="signal-lattice" aria-hidden="true" />
+      <span className="home-signal-sweep" data-home-motion="signal-sweep" aria-hidden="true" />
+      <span
+        className="home-signal-beacon home-signal-beacon-btc"
+        data-home-motion="signal-beacon"
+        aria-hidden="true"
+      />
+      <span
+        className="home-signal-beacon home-signal-beacon-eth"
+        data-home-motion="signal-beacon"
+        aria-hidden="true"
+      />
+      <span
+        className="home-signal-beacon home-signal-beacon-sol"
+        data-home-motion="signal-beacon"
+        aria-hidden="true"
+      />
       <span className="home-hero-mark" aria-hidden="true" />
       <p className="home-hero-kicker">{kicker}</p>
       <div className="home-hero-copy">

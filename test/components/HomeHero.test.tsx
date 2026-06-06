@@ -27,6 +27,8 @@ describe('HomeHero', () => {
 
     expect(container.querySelector('[data-surface="arena-signal-glass"]')).toBeInTheDocument();
     expect(container.querySelector('[data-home-motion="signal-lattice"]')).toBeInTheDocument();
+    expect(container.querySelector('[data-home-motion="signal-sweep"]')).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-home-motion="signal-beacon"]')).toHaveLength(3);
 
     const arenaLink = screen.getByRole('link', { name: /enter arena/i });
     const agentsLink = screen.getByRole('link', { name: /view agents/i });

@@ -140,6 +140,13 @@
 - [x] 15.3 Keep hero CTAs, locked copy, KPI data flow, mobile no-overflow behavior, and route E2E intact. _Executor: Architecture Codex or worker-codex_
 - [x] 15.4 Add/update focused tests, run OpenSpec validation, and perform desktop/mobile visual smoke against `/` and `/arena` style consistency. _Executor: Architecture Codex + review-codex_
 
+## 16. Home Perceptible Motion Fix (Post-test Feedback)
+
+- [x] 16.1 Diagnose why the existing home motion is technically active but not visually perceptible. _Executor: Architecture Codex_
+- [x] 16.2 Add a stronger CSS-only scanline plus pulsing signal nodes while preserving Arena Signal Glass styling and reduced-motion safety. _Executor: Architecture Codex_
+- [x] 16.3 Add/update focused tests and E2E selectors so the perceptible motion layer remains wired. _Executor: Architecture Codex_
+- [x] 16.4 Run focused tests, browser computed-style verification, OpenSpec validation, and final build/lint checks. _Executor: Architecture Codex + review-codex_
+
 ## Acceptance Criteria (Stage 6 verification gates)
 
 - All Codex tasks committed atomically with green tests at each commit
