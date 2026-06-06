@@ -23,6 +23,7 @@ import { ensureUsdcAllowance, readUsdcAllowance, readUsdcBalance } from '@/lib/a
 import { ARC_TESTNET_CHAIN_ID } from '@/lib/config/constants';
 import type { AgentSignal } from '@/lib/polymarket/types';
 import type { WalletFollowRecord } from '@/lib/persistence/store';
+import { getSignalCommitEligibilityReason } from '@/lib/utils/signal';
 
 interface ShowdownsResponse {
   showdowns: ShowdownCardData[];
@@ -262,6 +263,83 @@ function getArenaActionErrorMessage(error: unknown) {
   }
 
   return error.message;
+}
+
+function formatGateCount(count: number, singular: string, plural: string) {
+  if (count === 0) {
+    return null;
+  }
+
+  return `${count} ${count === 1 ? singular : plural}`;
+}
+
+function joinGateReasons(reasons: string[]) {
+  if (reasons.length <= 1) {
+    return reasons[0] ?? 'no signal passed the wallet gate';
+  }
+
+  if (reasons.length === 2) {
+    return `${reasons[0]} and ${reasons[1]}`;
+  }
+
+  return `${reasons.slice(0, -1).join(', ')}, and ${reasons[reasons.length - 1]}`;
+}
+
+function buildNoFundableSignalMessage(
+  signals: AgentSignal[],
+  follows: WalletFollowRecord[],
+  address: `0x${string}` | null
+) {
+  if (signals.length === 0) {
+    return 'Agents ran, but no signals were returned. Wallet follow stayed paused and no wallet transaction was requested.';
+  }
+
+  const counts = {
+    lowConfidence: 0,
+    avoid: 0,
+    lowEdge: 0,
+    alreadyFollowed: 0,
+    alreadyOnchain: 0
+  };
+
+  for (const signal of signals) {
+    if (signal.arcTxHash) {
+      counts.alreadyOnchain += 1;
+      continue;
+    }
+
+    if (hasWalletFollowForSignal(follows, signal.id, address)) {
+      counts.alreadyFollowed += 1;
+      continue;
+    }
+
+    const reason = getSignalCommitEligibilityReason(signal);
+    if (reason === 'signal_side_avoid') {
+      counts.avoid += 1;
+    } else if (reason === 'low_confidence') {
+      counts.lowConfidence += 1;
+    } else if (reason === 'low_edge') {
+      counts.lowEdge += 1;
+    }
+  }
+
+  const reasons = [
+    formatGateCount(counts.lowConfidence, 'signal was LOW confidence', 'signals were LOW confidence'),
+    formatGateCount(counts.avoid, 'signal was AVOID', 'signals were AVOID'),
+    formatGateCount(counts.lowEdge, 'signal had edge below 7.00%', 'signals had edge below 7.00%'),
+    formatGateCount(
+      counts.alreadyFollowed,
+      'signal is already followed by this wallet',
+      'signals are already followed by this wallet'
+    ),
+    formatGateCount(
+      counts.alreadyOnchain,
+      'signal is already onchain',
+      'signals are already onchain'
+    )
+  ].filter((reason): reason is string => Boolean(reason));
+
+  return `Agents ran, but wallet follow stayed paused: ${joinGateReasons(reasons)}. No wallet transaction was requested. Repeated runs can stay paused while market prices and model conviction remain below the MEDIUM/HIGH gate.`;
 }
 
 function isPreviewEligibleSignal(signal: AgentSignal) {
@@ -622,7 +700,7 @@ export function ArenaDashboard() {
     const follows = await refreshWalletFollowSummary(address);
     const signal = selectWalletFundableSignal(payload.signals ?? [], follows, address);
     if (!signal) {
-      setWalletMessage('No wallet-fundable signal was generated in this run.');
+      setWalletMessage(buildNoFundableSignalMessage(payload.signals ?? [], follows, address));
       if (connectedNow || walletChainId === null) {
         await syncConnectedWallet(address);
       }

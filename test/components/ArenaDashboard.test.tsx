@@ -890,7 +890,11 @@ describe('ArenaDashboard', () => {
       );
     });
     await waitFor(() => {
-      expect(screen.getByText('No wallet-fundable signal was generated in this run.')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /Agents ran, but wallet follow stayed paused: 1 signal is already followed by this wallet\./i
+        )
+      ).toBeInTheDocument();
     });
     await waitFor(() => {
       expect(walletMocks.writeBrowserWalletSession).toHaveBeenCalledWith(
@@ -927,6 +931,84 @@ describe('ArenaDashboard', () => {
       walletMocks.createBrowserWalletClients.mock.invocationCallOrder[0]
     );
     expect(walletMocks.switchBrowserWalletToArc).not.toHaveBeenCalled();
+    expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
+  });
+
+  it('explains risk gates when run agents plus follow has only low or avoid signals', async () => {
+    mockConnectedWalletSession();
+    const lowSignal = createSignal({
+      id: 'signal-low-confidence',
+      side: 'NO',
+      confidence: 'LOW',
+      edgeBps: 780,
+      agentProbabilityBps: 5300,
+      pYesBps: 4700,
+      modelHash: `0x${'a'.repeat(64)}`,
+      dataHash: `0x${'b'.repeat(64)}`
+    });
+    const avoidSignal = createSignal({
+      id: 'signal-avoid',
+      side: 'AVOID',
+      confidence: 'LOW',
+      edgeBps: 300,
+      stakeMicroUsdc: 0,
+      modelHash: `0x${'c'.repeat(64)}`,
+      dataHash: `0x${'d'.repeat(64)}`
+    });
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+        if (url === '/api/showdowns?status=all&limit=50') {
+          return createJsonResponse({ showdowns: [] });
+        }
+
+        if (url === '/api/autonomy') {
+          return createJsonResponse({
+            controlRoom: {
+              status: 'ready',
+              reason: null,
+              chainId: 5042002,
+              arenaAddress: '0x9999999999999999999999999999999999999999',
+              usdcAddress: '0x8888888888888888888888888888888888888888',
+              usdcDecimals: 6,
+              commitAvailable: true,
+              latestTxHash: null
+            }
+          });
+        }
+
+        if (url === '/api/run-agents') {
+          return createJsonResponse({ signals: [lowSignal, avoidSignal] });
+        }
+
+        if (url === `/api/wallet/${walletAddress}/summary`) {
+          return createJsonResponse({
+            walletAddress,
+            follows: [],
+            walletFollows: []
+          });
+        }
+
+        throw new Error(`Unhandled fetch request: ${url}`);
+      })
+    );
+
+    renderDashboard();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Run Agents + Follow' }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          /Agents ran, but wallet follow stayed paused: 1 signal was LOW confidence and 1 signal was AVOID\./i
+        )
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/No wallet transaction was requested/i)).toBeInTheDocument();
+    expect(usdcMocks.ensureUsdcAllowance).not.toHaveBeenCalled();
     expect(arenaMocks.commitArenaSignal).not.toHaveBeenCalled();
   });
 
